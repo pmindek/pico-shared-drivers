@@ -10,8 +10,32 @@
 static i2c_inst_t *s_i2c;
 static uint8_t s_addr;
 
-// 1 bit per pixel, paged: 8 vertical pages of 128 columns each.
+// 1 bit per pixel, paged: 8 vertical pages of 128 columns each. Always the
+// display's own framebuffer specifically - ssd1306_show() pushes this and
+// only this, regardless of the current draw target (see s_target below).
 static uint8_t s_buf[SSD1306_WIDTH * SSD1306_HEIGHT / 8];
+static ssd1306_canvas_t s_display_canvas = {SSD1306_WIDTH, SSD1306_HEIGHT, s_buf};
+
+// What ssd1306_clear()/draw_pixel()/invert_rect()/scroll_up() actually
+// operate on - the display by default, or an off-screen canvas between a
+// ssd1306_set_target(canvas) and the matching ssd1306_set_target(NULL).
+static ssd1306_canvas_t *s_target = &s_display_canvas;
+
+void ssd1306_set_target(ssd1306_canvas_t *canvas) {
+    s_target = canvas ? canvas : &s_display_canvas;
+}
+
+int ssd1306_target_width(void) {
+    return s_target->width;
+}
+
+int ssd1306_target_height(void) {
+    return s_target->height;
+}
+
+bool ssd1306_target_is_display(void) {
+    return s_target == &s_display_canvas;
+}
 
 static bool s_checkerboard_debug = false;
 
@@ -20,7 +44,7 @@ void ssd1306_set_checkerboard_debug(bool enabled) {
 }
 
 // The two core pixel-write choke points (ssd1306_draw_pixel(),
-// ssd1306_invert_rect()) each check this before touching s_buf.
+// ssd1306_invert_rect()) each check this before touching the target buffer.
 static inline bool checkerboard_allows(int x, int y) {
     return !s_checkerboard_debug || ((x ^ y) & 1) == 0;
 }
@@ -65,18 +89,18 @@ void ssd1306_init(i2c_inst_t *i2c, uint8_t addr) {
 }
 
 void ssd1306_clear(void) {
-    memset(s_buf, 0, sizeof(s_buf));
+    memset(s_target->buf, 0, SSD1306_CANVAS_BYTES(s_target->width, s_target->height));
 }
 
 void ssd1306_draw_pixel(int x, int y, bool on) {
-    if (x < 0 || x >= SSD1306_WIDTH || y < 0 || y >= SSD1306_HEIGHT) return;
+    if (x < 0 || x >= s_target->width || y < 0 || y >= s_target->height) return;
     if (!checkerboard_allows(x, y)) return;
-    size_t idx = x + (y / 8) * SSD1306_WIDTH;
+    size_t idx = x + (y / 8) * s_target->width;
     uint8_t mask = 1 << (y % 8);
     if (on) {
-        s_buf[idx] |= mask;
+        s_target->buf[idx] |= mask;
     } else {
-        s_buf[idx] &= ~mask;
+        s_target->buf[idx] &= ~mask;
     }
 }
 
@@ -141,13 +165,29 @@ void ssd1306_fill_rect(int x, int y, int w, int h, bool on) {
 
 void ssd1306_invert_rect(int x, int y, int w, int h) {
     for (int j = y; j < y + h; j++) {
-        if (j < 0 || j >= SSD1306_HEIGHT) continue;
+        if (j < 0 || j >= s_target->height) continue;
         for (int i = x; i < x + w; i++) {
-            if (i < 0 || i >= SSD1306_WIDTH) continue;
+            if (i < 0 || i >= s_target->width) continue;
             if (!checkerboard_allows(i, j)) continue;
-            size_t idx = i + (j / 8) * SSD1306_WIDTH;
+            size_t idx = i + (j / 8) * s_target->width;
             uint8_t mask = 1 << (j % 8);
-            s_buf[idx] ^= mask;
+            s_target->buf[idx] ^= mask;
+        }
+    }
+}
+
+void ssd1306_blit_canvas(const ssd1306_canvas_t *src, int src_x, int src_y, int w, int h, int dst_x, int dst_y) {
+    for (int j = 0; j < h; j++) {
+        int sy = src_y + j;
+        for (int i = 0; i < w; i++) {
+            int sx = src_x + i;
+            bool on = false;
+            if (sx >= 0 && sx < src->width && sy >= 0 && sy < src->height) {
+                size_t idx = sx + (sy / 8) * src->width;
+                uint8_t mask = 1 << (sy % 8);
+                on = (src->buf[idx] & mask) != 0;
+            }
+            ssd1306_draw_pixel(dst_x + i, dst_y + j, on);
         }
     }
 }
@@ -221,28 +261,28 @@ void ssd1306_draw_text(int x, int y, const char *text, const ssd1306_font_t *fon
 
 void ssd1306_scroll_up(int rows) {
     if (rows <= 0) return;
-    if (rows >= SSD1306_HEIGHT) {
+    if (rows >= s_target->height) {
         ssd1306_clear();
         return;
     }
     // General pixel-by-pixel shift (not a memmove of whole pages) so this
     // stays correct even if a scroll amount isn't a multiple of the 8-row
     // page size the buffer happens to be organized in.
-    for (int x = 0; x < SSD1306_WIDTH; x++) {
-        for (int y = 0; y < SSD1306_HEIGHT; y++) {
+    for (int x = 0; x < s_target->width; x++) {
+        for (int y = 0; y < s_target->height; y++) {
             int src_y = y + rows;
             bool on = false;
-            if (src_y < SSD1306_HEIGHT) {
-                size_t src_idx = x + (src_y / 8) * SSD1306_WIDTH;
+            if (src_y < s_target->height) {
+                size_t src_idx = x + (src_y / 8) * s_target->width;
                 uint8_t src_mask = 1 << (src_y % 8);
-                on = (s_buf[src_idx] & src_mask) != 0;
+                on = (s_target->buf[src_idx] & src_mask) != 0;
             }
-            size_t dst_idx = x + (y / 8) * SSD1306_WIDTH;
+            size_t dst_idx = x + (y / 8) * s_target->width;
             uint8_t dst_mask = 1 << (y % 8);
             if (on) {
-                s_buf[dst_idx] |= dst_mask;
+                s_target->buf[dst_idx] |= dst_mask;
             } else {
-                s_buf[dst_idx] &= ~dst_mask;
+                s_target->buf[dst_idx] &= ~dst_mask;
             }
         }
     }

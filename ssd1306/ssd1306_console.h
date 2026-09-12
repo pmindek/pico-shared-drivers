@@ -21,6 +21,16 @@
 // Everything else in this API is in character-grid terms (column/row
 // indices, column 0 = leftmost, row 0 = top line) - never raw pixels, so it
 // composes without the caller needing to know any pixel sizes at all.
+//
+// The console's grid size and every pixel position it computes are always
+// relative to the *current* ssd1306_set_target() (see ssd1306.h) - so it
+// works just as well drawing into an off-screen canvas (e.g. a window's
+// content area, see ssd1306_window.h) as it does drawing straight to the
+// display. Calls that would otherwise push to the display (ssd1306_show())
+// skip that automatically while the current target isn't the display -
+// pushing wouldn't show the off-screen content anyway, and would just be
+// wasted i2c traffic re-sending the display's own unrelated, unchanged
+// framebuffer.
 
 #ifdef __cplusplus
 extern "C" {

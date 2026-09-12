@@ -50,6 +50,20 @@ extern const ssd1306_font_t ssd1306_font_7x11_narrow;
 // "Micro" - 4x7 glyphs, ASCII 32 (space) through 126 ('~').
 extern const ssd1306_font_t ssd1306_font_4x7;
 
+// An off-screen drawing target: a 1bpp paged framebuffer just like the
+// display's own, but any width/height - see ssd1306_set_target(). buf must
+// be at least SSD1306_CANVAS_BYTES(width, height) bytes, caller-owned (nothing
+// here ever allocates memory); its contents are undefined until something
+// draws into it (typically ssd1306_clear() right after ssd1306_set_target()).
+typedef struct {
+    int width;
+    int height;
+    uint8_t *buf;
+} ssd1306_canvas_t;
+
+// Bytes of backing storage an ssd1306_canvas_t of the given size needs.
+#define SSD1306_CANVAS_BYTES(width, height) ((size_t)(width) * (size_t)(((height) + 7) / 8))
+
 // Initializes the display over the given i2c instance/address.
 // Caller must have already called i2c_init() and set GPIO functions/pull-ups.
 void ssd1306_init(i2c_inst_t *i2c, uint8_t addr);
@@ -62,6 +76,40 @@ void ssd1306_draw_circle(int cx, int cy, int r, bool on);
 void ssd1306_fill_circle(int cx, int cy, int r, bool on);
 void ssd1306_fill_rect(int x, int y, int w, int h, bool on);
 void ssd1306_invert_rect(int x, int y, int w, int h);
+
+// Redirects every drawing call above (and so ssd1306_draw_text() and the
+// console, both built entirely on top of them) to `canvas` instead of the
+// display's own framebuffer, until the next ssd1306_set_target() call. Pass
+// NULL to go back to the display - the default target, so most code never
+// needs to call this at all. ssd1306_show() always pushes the display's own
+// framebuffer specifically, regardless of the current target - an
+// off-screen canvas is made visible by ssd1306_blit_canvas()ing it onto the
+// display (after ssd1306_set_target(NULL)), not by targeting it directly.
+void ssd1306_set_target(ssd1306_canvas_t *canvas);
+
+// The current target's dimensions (SSD1306_WIDTH/HEIGHT when it's the
+// display) - what ssd1306_draw_pixel() and friends are currently clipping
+// against. For code (like the console) that needs to size itself to
+// whatever it's currently drawing into rather than assuming the display.
+int ssd1306_target_width(void);
+int ssd1306_target_height(void);
+
+// True if the current target is the display (i.e. ssd1306_set_target()
+// hasn't redirected drawing to an off-screen canvas). Lets code that
+// normally pushes to the display after drawing (e.g. the console) skip
+// that push when it's actually drawing off-screen, where it would be both
+// meaningless and - since it'd still push the display's unrelated,
+// unchanged content - pure wasted i2c traffic.
+bool ssd1306_target_is_display(void);
+
+// Copies a `w` x `h` region of `src` starting at (src_x, src_y) onto the
+// *current target* at (dst_x, dst_y) - each destination pixel goes through
+// ssd1306_draw_pixel(), so normal clipping/checkerboard-debug rules apply.
+// Source pixels outside src's own bounds (e.g. src_y < 0, or src_y + h  >
+// src->height) read as off, rather than being an error - this is what lets
+// a window blit a partial/short slice of its content canvas without the
+// caller special-casing "content shorter than the viewport".
+void ssd1306_blit_canvas(const ssd1306_canvas_t *src, int src_x, int src_y, int w, int h, int dst_x, int dst_y);
 
 // Draws text with its top-left corner at (x, y), using `font`, advancing
 // (font->glyph_width + spacing_px) pixels per character - spacing_px is
