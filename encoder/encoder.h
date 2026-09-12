@@ -7,12 +7,17 @@
 extern "C" {
 #endif
 
-// Rotary encoder (KY-040 style: CLK, DT, SW). Rotation is interrupt-driven
-// on the CLK pin, so clicks aren't missed even if the main loop is busy
-// elsewhere (e.g. an I2C display push takes long enough that a polling
-// loop could easily miss a fast turn). SW (push button) is polled instead -
-// same convention as bats/gyros' existing rezero-button code: call
-// encoder_button_pressed() once per main-loop iteration.
+// Rotary encoder (KY-040 style: CLK, DT, SW). Rotation is decoded by a full
+// 4-step quadrature state machine, interrupt-driven on both CLK and DT (all
+// edges), so clicks aren't missed even if the main loop is busy elsewhere
+// (e.g. an I2C display push) - and, just as importantly, so a real
+// mechanical encoder's contact bounce can't produce a wrong-direction or
+// missed click. A click is only counted once a complete 3->1->0->2->3 (CW)
+// or 3->2->0->1->3 (CCW) sequence lands cleanly back at rest; any
+// out-of-sequence transition (bounce, or a step getting lost) just resets
+// the in-progress count rather than corrupting it. SW (push button) is
+// polled instead - same convention as bats/gyros' existing rezero-button
+// code: call encoder_button_pressed() once per main-loop iteration.
 //
 // Direction (CW = positive delta) is the standard assumption for this
 // wiring but hasn't been verified against real hardware here - if it comes
@@ -30,8 +35,9 @@ typedef struct {
     uint clk_pin;
     uint dt_pin;
     uint sw_pin;
-    volatile int delta;
-    volatile uint64_t last_clk_us;
+    volatile uint8_t pin_state; // current 2-bit (CLK<<1 | DT) state
+    volatile int8_t accum;      // steps accumulated since the last rest position
+    volatile int delta;         // net completed clicks since the last encoder_take_delta()
     bool sw_was_pressed;
     uint64_t sw_last_change_us;
 } encoder_t;
