@@ -7,16 +7,6 @@
 #define SSD1306_WIDTH  128
 #define SSD1306_HEIGHT 64
 
-// ssd1306_draw_text()'s per-character cell size, i.e. ssd1306_font_5x7's
-// cell_width/cell_height (see ssd1306_font_t below) - the console/highlight/
-// scrollbar helpers are all built around this fixed grid, so it stays a
-// pair of top-level macros rather than requiring an ssd1306_font_t lookup
-// just to lay out a line of text. A font used only via ssd1306_draw_text_ex()
-// directly, without going through those helpers, can have any cell size of
-// its own - it isn't tied to these values.
-#define SSD1306_CHAR_WIDTH  6
-#define SSD1306_CHAR_HEIGHT 9
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -30,30 +20,24 @@ extern "C" {
 // font byte would cap it to; a tall font just uses more bytes per column.
 // Characters outside [first_code, first_code + glyph_count) draw as blank.
 //
-// cell_width/cell_height are the full per-character advance, i.e. what
-// ssd1306_draw_text_ex() actually steps by and repaints - normally a bit
-// bigger than glyph_width/glyph_height so there's a blank column/row of gap
-// between characters/lines; a font with no built-in gap (e.g. because its
-// source image already had gaps baked into each glyph cell) just sets
-// cell_width == glyph_width (and/or cell_height == glyph_height).
+// A font only describes its glyphs, not any spacing around them - see
+// ssd1306_draw_text()'s spacing_px for inter-character gap, and
+// ssd1306_console_set_char_spacing()/set_line_spacing() for the console's
+// equivalent. Any number of fonts of any size can exist; nothing here is
+// tied to one particular font's dimensions.
 typedef struct {
     uint8_t glyph_width;
     uint8_t glyph_height;
-    uint8_t cell_width;
-    uint8_t cell_height;
     const uint8_t *glyphs;
     uint8_t first_code;
     uint16_t glyph_count;
 } ssd1306_font_t;
 
-// The font ssd1306_draw_text() uses - CP437, 5x8 glyphs (visually ~5x7; the
-// 8th row is blank for most characters, used only for descenders on a few),
-// 6x9 cell (1px gap column + 1px gap row), covering all 256 codes.
+// CP437, 5x8 glyphs (visually ~5x7; the 8th row is blank for most
+// characters, used only for descenders on a few), covering all 256 codes.
 extern const ssd1306_font_t ssd1306_font_5x7;
 
-// "Chonk" - 7x11 glyphs, ASCII 32 (space) through 126 ('~'), 7x11 cell (no
-// added gap - the source image's glyph cells already have their own
-// spacing baked in). See font7x11.h.
+// "Chonk" - 7x11 glyphs, ASCII 32 (space) through 126 ('~').
 extern const ssd1306_font_t ssd1306_font_7x11;
 
 // Initializes the display over the given i2c instance/address.
@@ -69,17 +53,15 @@ void ssd1306_fill_circle(int cx, int cy, int r, bool on);
 void ssd1306_fill_rect(int x, int y, int w, int h, bool on);
 void ssd1306_invert_rect(int x, int y, int w, int h);
 
-// Draws text with its top-left corner at (x, y), using the given font (see
-// ssd1306_font_t above). Characters that run off the right/bottom edge are
-// clipped, not wrapped. Always repaints the full character cell (on AND off
-// pixels, including any gap column/row) so redrawing over existing content
-// - e.g. to erase a character - works correctly.
-void ssd1306_draw_text_ex(int x, int y, const char *text, const ssd1306_font_t *font);
-
-// ssd1306_draw_text_ex(x, y, text, &ssd1306_font_5x7) - the original,
-// single-font entry point. Behavior unchanged; kept as the default so
-// existing callers don't need to care that other fonts exist.
-void ssd1306_draw_text(int x, int y, const char *text);
+// Draws text with its top-left corner at (x, y), using `font`, advancing
+// (font->glyph_width + spacing_px) pixels per character - spacing_px is
+// extra blank columns of gap between characters (0 for none; a font whose
+// own glyph cells already include their spacing, like ssd1306_font_7x11,
+// wants 0 here). Characters that run off the right/bottom edge are
+// clipped, not wrapped. Always repaints the full advance width and glyph
+// height (on AND off pixels, including the spacing gap) so redrawing over
+// existing content - e.g. to erase a character - works correctly.
+void ssd1306_draw_text(int x, int y, const char *text, const ssd1306_font_t *font, int spacing_px);
 
 // Shifts the whole framebuffer's content up by `rows` pixels; rows exposed
 // at the bottom are cleared, rows shifted off the top are lost. `rows` does

@@ -2,10 +2,9 @@
 
 // "Chonk" 7x11 bitmap font, ASCII 32 (' ') through 126 ('~') -
 // 95 glyphs, generated from fonts/chonk_7x11.png (a 665x11px strip,
-// 95 cells of 7x11px each, laid out left to right in
-// ASCII order with no gap between cells - the source image's own glyphs
-// already have their spacing baked in, so ssd1306_font_7x11's cell_width/
-// cell_height equal glyph_width/glyph_height exactly, no extra gap added).
+// 95 cells of 7x11px each, laid out left to right in ASCII order - the
+// source image's own glyphs already have their spacing baked in, so use
+// spacing_px=0 with ssd1306_font_7x11 (see ssd1306_draw_text()).
 //
 // 2 bytes per column (glyph_height=11 > 8, so one byte
 // isn't enough - byte 0 = rows 0-7, byte 1 = rows 8-10 (bits above

@@ -5,22 +5,69 @@ static int s_cursor_x = 0;
 static int s_cursor_y = 0;
 static bool s_auto_newline = true;
 
-// Highlighting is shifted 1px up from the cell's actual pixel bounds, so its
-// bottom edge lands on the (always-blank) gap row instead of the cell's own
-// last text row - a deliberate 1px unhighlighted border under highlighted
-// text, for readability. The cost: the top text row of the cell above gets
-// swallowed into the highlight instead. On row 0, the shifted-up top edge is
-// simply clipped by ssd1306_invert_rect()'s bounds check, losing that 1px
-// border on the very first line - accepted as harmless.
-#define SSD1306_CONSOLE_HIGHLIGHT_Y_OFFSET (-1)
+static const ssd1306_font_t *s_font = &ssd1306_font_5x7;
+static int s_char_spacing = 1;
+static int s_line_spacing = 1;
 
-// Highlight tracking, one flag per character cell.
-static bool s_highlighted[SSD1306_CONSOLE_ROWS][SSD1306_CONSOLE_COLS];
+// See ssd1306_console_set_highlight_offset()'s doc comment for why this
+// defaults to (0, -1): a deliberate 1px unhighlighted border under
+// highlighted text, landing on the gap row below it instead of the text's
+// own last row.
+static int s_highlight_offset_x = 0;
+static int s_highlight_offset_y = -1;
+
+static inline int cell_width(void) { return s_font->glyph_width + s_char_spacing; }
+static inline int cell_height(void) { return s_font->glyph_height + s_line_spacing; }
+
+// Highlight tracking is a fixed-size array, sized for the smallest
+// font/spacing combination worth using in practice, to avoid dynamic
+// allocation - a cell size small enough to want more than this many
+// columns/rows is clamped instead of indexed out of bounds (see
+// ssd1306_console_cols()/rows() and highlight_cell()'s own bounds check).
+#define SSD1306_CONSOLE_MAX_COLS 42 // SSD1306_WIDTH / 3
+#define SSD1306_CONSOLE_MAX_ROWS 21 // SSD1306_HEIGHT / 3
+static bool s_highlighted[SSD1306_CONSOLE_MAX_ROWS][SSD1306_CONSOLE_MAX_COLS];
+
+void ssd1306_console_set_font(const ssd1306_font_t *font)
+{
+    s_font = font;
+}
+
+void ssd1306_console_set_char_spacing(int spacing_px)
+{
+    s_char_spacing = spacing_px;
+}
+
+void ssd1306_console_set_line_spacing(int spacing_px)
+{
+    s_line_spacing = spacing_px;
+}
+
+void ssd1306_console_set_highlight_offset(int dx, int dy)
+{
+    s_highlight_offset_x = dx;
+    s_highlight_offset_y = dy;
+}
+
+static inline int clamp_cols(int cols) { return cols > SSD1306_CONSOLE_MAX_COLS ? SSD1306_CONSOLE_MAX_COLS : cols; }
+static inline int clamp_rows(int rows) { return rows > SSD1306_CONSOLE_MAX_ROWS ? SSD1306_CONSOLE_MAX_ROWS : rows; }
+
+int ssd1306_console_cols(void)
+{
+    int cw = cell_width();
+    return clamp_cols((SSD1306_WIDTH + cw - 1) / cw);
+}
+
+int ssd1306_console_rows(void)
+{
+    int ch = cell_height();
+    return clamp_rows((SSD1306_HEIGHT + ch - 1) / ch);
+}
 
 static void clear_highlight_tracking(void)
 {
-    for (int row = 0; row < SSD1306_CONSOLE_ROWS; row++) {
-        for (int col = 0; col < SSD1306_CONSOLE_COLS; col++) {
+    for (int row = 0; row < SSD1306_CONSOLE_MAX_ROWS; row++) {
+        for (int col = 0; col < SSD1306_CONSOLE_MAX_COLS; col++) {
             s_highlighted[row][col] = false;
         }
     }
@@ -33,13 +80,13 @@ static void clear_highlight_tracking(void)
 // un-invert the wrong cell.
 static void scroll_highlight_tracking_up_one_line(void)
 {
-    for (int row = 0; row < SSD1306_CONSOLE_ROWS - 1; row++) {
-        for (int col = 0; col < SSD1306_CONSOLE_COLS; col++) {
+    for (int row = 0; row < SSD1306_CONSOLE_MAX_ROWS - 1; row++) {
+        for (int col = 0; col < SSD1306_CONSOLE_MAX_COLS; col++) {
             s_highlighted[row][col] = s_highlighted[row + 1][col];
         }
     }
-    for (int col = 0; col < SSD1306_CONSOLE_COLS; col++) {
-        s_highlighted[SSD1306_CONSOLE_ROWS - 1][col] = false;
+    for (int col = 0; col < SSD1306_CONSOLE_MAX_COLS; col++) {
+        s_highlighted[SSD1306_CONSOLE_MAX_ROWS - 1][col] = false;
     }
 }
 
@@ -61,12 +108,13 @@ void ssd1306_console_new_line(void)
 {
     s_cursor_x = 0;
 
-    int next_y = s_cursor_y + SSD1306_CHAR_HEIGHT;
-    if (next_y + SSD1306_CHAR_HEIGHT > SSD1306_HEIGHT) {
+    int ch = cell_height();
+    int next_y = s_cursor_y + ch;
+    if (next_y + ch > SSD1306_HEIGHT) {
         // The next line wouldn't fully fit - scroll existing content up by
         // one line instead, and stay on this (now blank) bottom line, same
         // as a normal terminal.
-        ssd1306_scroll_up(SSD1306_CHAR_HEIGHT);
+        ssd1306_scroll_up(ch);
         scroll_highlight_tracking_up_one_line();
         ssd1306_show(); // visible immediately, regardless of what the caller does next
     } else {
@@ -77,6 +125,7 @@ void ssd1306_console_new_line(void)
 void ssd1306_console_write(const char *text)
 {
     char one_char[2] = {0, 0};
+    int cw = cell_width();
     for (int i = 0; text[i] != '\0'; i++) {
         char c = text[i];
 
@@ -89,19 +138,19 @@ void ssd1306_console_write(const char *text)
             continue;
         }
         if (c == '\b') {
-            if (s_cursor_x >= SSD1306_CHAR_WIDTH) {
-                s_cursor_x -= SSD1306_CHAR_WIDTH;
-                ssd1306_draw_text(s_cursor_x, s_cursor_y, " "); // erase the cell
+            if (s_cursor_x >= cw) {
+                s_cursor_x -= cw;
+                ssd1306_draw_text(s_cursor_x, s_cursor_y, " ", s_font, s_char_spacing); // erase the cell
             }
             continue;
         }
 
-        if (s_auto_newline && s_cursor_x + SSD1306_CHAR_WIDTH > SSD1306_WIDTH) {
+        if (s_auto_newline && s_cursor_x + cw > SSD1306_WIDTH) {
             ssd1306_console_new_line();
         }
         one_char[0] = c;
-        ssd1306_draw_text(s_cursor_x, s_cursor_y, one_char);
-        s_cursor_x += SSD1306_CHAR_WIDTH;
+        ssd1306_draw_text(s_cursor_x, s_cursor_y, one_char, s_font, s_char_spacing);
+        s_cursor_x += cw;
     }
     ssd1306_show();
 }
@@ -116,17 +165,14 @@ void ssd1306_console_write_ln(const char *text)
 // design - the caller may highlight the same cell any number of times.
 static void highlight_cell(int col, int row)
 {
-    if (col < 0 || col >= SSD1306_CONSOLE_COLS || row < 0 || row >= SSD1306_CONSOLE_ROWS) return;
+    if (col < 0 || col >= SSD1306_CONSOLE_MAX_COLS || row < 0 || row >= SSD1306_CONSOLE_MAX_ROWS) return;
     if (s_highlighted[row][col]) return;
     s_highlighted[row][col] = true;
-    // Full cell height, shifted 1px up (see SSD1306_CONSOLE_HIGHLIGHT_Y_OFFSET)
-    // so the highlight's own bottom row lands on the gap row instead of the
-    // cell's last text row, leaving a 1px unhighlighted border under the
-    // text - readability, at the cost of eating into the row above instead.
-    // Must match ssd1306_console_dehighlight_all()'s invert exactly, or the
-    // two XORs don't cancel out and a row of pixels is left stuck inverted.
-    ssd1306_invert_rect(col * SSD1306_CHAR_WIDTH, row * SSD1306_CHAR_HEIGHT + SSD1306_CONSOLE_HIGHLIGHT_Y_OFFSET,
-                         SSD1306_CHAR_WIDTH, SSD1306_CHAR_HEIGHT);
+    // Must match ssd1306_console_dehighlight_all()'s invert exactly (same
+    // offset, same size), or the two XORs don't cancel out and a row of
+    // pixels is left stuck inverted.
+    int cw = cell_width(), ch = cell_height();
+    ssd1306_invert_rect(col * cw + s_highlight_offset_x, row * ch + s_highlight_offset_y, cw, ch);
 }
 
 void ssd1306_console_highlight_char(int col, int row)
@@ -149,12 +195,11 @@ void ssd1306_console_highlight_rect(int col, int row, int cols, int rows)
 
 void ssd1306_console_dehighlight_all(void)
 {
-    for (int row = 0; row < SSD1306_CONSOLE_ROWS; row++) {
-        for (int col = 0; col < SSD1306_CONSOLE_COLS; col++) {
+    int cw = cell_width(), ch = cell_height();
+    for (int row = 0; row < SSD1306_CONSOLE_MAX_ROWS; row++) {
+        for (int col = 0; col < SSD1306_CONSOLE_MAX_COLS; col++) {
             if (s_highlighted[row][col]) {
-                ssd1306_invert_rect(col * SSD1306_CHAR_WIDTH,
-                                     row * SSD1306_CHAR_HEIGHT + SSD1306_CONSOLE_HIGHLIGHT_Y_OFFSET,
-                                     SSD1306_CHAR_WIDTH, SSD1306_CHAR_HEIGHT);
+                ssd1306_invert_rect(col * cw + s_highlight_offset_x, row * ch + s_highlight_offset_y, cw, ch);
                 s_highlighted[row][col] = false;
             }
         }
