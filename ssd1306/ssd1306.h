@@ -44,6 +44,12 @@ void ssd1306_scroll_up(int rows);
 // Pushes the framebuffer to the display over i2c.
 void ssd1306_show(void);
 
+// Turns the physical panel on/off (SSD1306 display on/off command) without
+// touching the framebuffer - the last-shown content reappears as-is when
+// turned back on, no redraw needed. For e.g. an idle timeout, not a
+// replacement for ssd1306_clear().
+void ssd1306_set_display_on(bool on);
+
 #ifdef __cplusplus
 }
 #endif

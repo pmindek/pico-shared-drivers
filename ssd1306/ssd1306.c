@@ -181,6 +181,10 @@ void ssd1306_scroll_up(int rows) {
     }
 }
 
+void ssd1306_set_display_on(bool on) {
+    ssd1306_cmd(on ? 0xAF : 0xAE);
+}
+
 void ssd1306_show(void) {
     // Constrain the column/page range so the whole 128x64 buffer gets pushed.
     ssd1306_cmd(0x21); // set column address
