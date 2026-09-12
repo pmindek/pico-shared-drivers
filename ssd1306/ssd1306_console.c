@@ -110,7 +110,10 @@ static void highlight_cell(int col, int row)
     if (col < 0 || col >= SSD1306_CONSOLE_COLS || row < 0 || row >= SSD1306_CONSOLE_ROWS) return;
     if (s_highlighted[row][col]) return;
     s_highlighted[row][col] = true;
-    ssd1306_invert_rect(col * SSD1306_CHAR_WIDTH, row * SSD1306_CHAR_HEIGHT, SSD1306_CHAR_WIDTH, SSD1306_CHAR_HEIGHT - 1);
+    // Full cell height, including the 1px gap row - must match
+    // ssd1306_console_dehighlight_all()'s invert exactly, or the two XORs
+    // don't cancel out and a row of pixels is left stuck inverted.
+    ssd1306_invert_rect(col * SSD1306_CHAR_WIDTH, row * SSD1306_CHAR_HEIGHT, SSD1306_CHAR_WIDTH, SSD1306_CHAR_HEIGHT);
 }
 
 void ssd1306_console_highlight_char(int col, int row)
