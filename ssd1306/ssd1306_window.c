@@ -45,6 +45,16 @@ void ssd1306_window_end_content(void) {
 void ssd1306_window_draw(const ssd1306_window_t *win, int scroll_y) {
     ssd1306_set_target(NULL); // chrome always draws straight onto the display
 
+    // Clear the whole title-bar band first: ssd1306_draw_text() below only
+    // paints the columns win->title's own text actually spans, and the
+    // checkered divider only ever sets its alternating "on" pixels, never
+    // clears the rest of the row - so without this, anything drawn there
+    // before this window existed (e.g. gyros.cpp's boot-time debug_text()
+    // log, which writes straight to the display before any screen takes
+    // over) - or even just a previous, longer title - would stay stuck
+    // forever, since nothing else ever repaints those particular pixels.
+    ssd1306_fill_rect(0, 0, SSD1306_WIDTH, win->viewport_y, false);
+
     ssd1306_draw_text(0, 0, win->title, win->title_font, 0);
 
     // Checkered, not solid - purely decorative (same convention as the
