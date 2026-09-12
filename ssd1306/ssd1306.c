@@ -125,12 +125,45 @@ void ssd1306_fill_rect(int x, int y, int w, int h, bool on) {
 void ssd1306_draw_text(int x, int y, const char *text) {
     for (int i = 0; text[i] != '\0'; i++) {
         const uint8_t *glyph = &kFont5x7Cp437[(uint8_t)text[i] * 5];
-        for (int col = 0; col < 5; col++) {
-            uint8_t bits = glyph[col];
+        // Paint every pixel in the cell - on AND off, including the 1px
+        // gap column after the glyph - not just the "on" ones. Otherwise
+        // redrawing a different (e.g. narrower, or blank) character over an
+        // existing one leaves ghost pixels behind, which is exactly what
+        // happens if a caller relies on this to erase (e.g. backspace).
+        for (int col = 0; col < SSD1306_CHAR_WIDTH; col++) {
+            uint8_t bits = (col < 5) ? glyph[col] : 0;
             for (int row = 0; row < SSD1306_CHAR_HEIGHT; row++) {
-                if (bits & (1 << row)) {
-                    ssd1306_draw_pixel(x + i * SSD1306_CHAR_WIDTH + col, y + row, true);
-                }
+                bool on = (bits & (1 << row)) != 0;
+                ssd1306_draw_pixel(x + i * SSD1306_CHAR_WIDTH + col, y + row, on);
+            }
+        }
+    }
+}
+
+void ssd1306_scroll_up(int rows) {
+    if (rows <= 0) return;
+    if (rows >= SSD1306_HEIGHT) {
+        ssd1306_clear();
+        return;
+    }
+    // General pixel-by-pixel shift (not a memmove of whole pages) so this
+    // stays correct even if a scroll amount isn't a multiple of the 8-row
+    // page size the buffer happens to be organized in.
+    for (int x = 0; x < SSD1306_WIDTH; x++) {
+        for (int y = 0; y < SSD1306_HEIGHT; y++) {
+            int src_y = y + rows;
+            bool on = false;
+            if (src_y < SSD1306_HEIGHT) {
+                size_t src_idx = x + (src_y / 8) * SSD1306_WIDTH;
+                uint8_t src_mask = 1 << (src_y % 8);
+                on = (s_buf[src_idx] & src_mask) != 0;
+            }
+            size_t dst_idx = x + (y / 8) * SSD1306_WIDTH;
+            uint8_t dst_mask = 1 << (y % 8);
+            if (on) {
+                s_buf[dst_idx] |= dst_mask;
+            } else {
+                s_buf[dst_idx] &= ~dst_mask;
             }
         }
     }

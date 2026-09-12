@@ -30,8 +30,15 @@ void ssd1306_fill_rect(int x, int y, int w, int h, bool on);
 
 // Draws text (5x7 CP437 font, 6px per character advance) with its top-left
 // corner at (x, y). Characters that run off the right/bottom edge are
-// clipped, not wrapped.
+// clipped, not wrapped. Always repaints the full character cell (on AND off
+// pixels, including the trailing gap column) so redrawing over existing
+// content - e.g. to erase a character - works correctly.
 void ssd1306_draw_text(int x, int y, const char *text);
+
+// Shifts the whole framebuffer's content up by `rows` pixels; rows exposed
+// at the bottom are cleared, rows shifted off the top are lost. `rows` does
+// not need to be a multiple of anything.
+void ssd1306_scroll_up(int rows);
 
 // Pushes the framebuffer to the display over i2c.
 void ssd1306_show(void);
