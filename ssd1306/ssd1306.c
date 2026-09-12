@@ -12,6 +12,18 @@ static uint8_t s_addr;
 // 1 bit per pixel, paged: 8 vertical pages of 128 columns each.
 static uint8_t s_buf[SSD1306_WIDTH * SSD1306_HEIGHT / 8];
 
+static bool s_checkerboard_debug = false;
+
+void ssd1306_set_checkerboard_debug(bool enabled) {
+    s_checkerboard_debug = enabled;
+}
+
+// The two core pixel-write choke points (ssd1306_draw_pixel(),
+// ssd1306_invert_rect()) each check this before touching s_buf.
+static inline bool checkerboard_allows(int x, int y) {
+    return !s_checkerboard_debug || ((x ^ y) & 1) == 0;
+}
+
 static void ssd1306_cmd(uint8_t cmd) {
     uint8_t buf[2] = {0x00, cmd}; // control byte 0x00 = command
     i2c_write_blocking(s_i2c, s_addr, buf, 2, false);
@@ -57,6 +69,7 @@ void ssd1306_clear(void) {
 
 void ssd1306_draw_pixel(int x, int y, bool on) {
     if (x < 0 || x >= SSD1306_WIDTH || y < 0 || y >= SSD1306_HEIGHT) return;
+    if (!checkerboard_allows(x, y)) return;
     size_t idx = x + (y / 8) * SSD1306_WIDTH;
     uint8_t mask = 1 << (y % 8);
     if (on) {
@@ -130,6 +143,7 @@ void ssd1306_invert_rect(int x, int y, int w, int h) {
         if (j < 0 || j >= SSD1306_HEIGHT) continue;
         for (int i = x; i < x + w; i++) {
             if (i < 0 || i >= SSD1306_WIDTH) continue;
+            if (!checkerboard_allows(i, j)) continue;
             size_t idx = i + (j / 8) * SSD1306_WIDTH;
             uint8_t mask = 1 << (j % 8);
             s_buf[idx] ^= mask;

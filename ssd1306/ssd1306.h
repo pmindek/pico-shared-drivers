@@ -84,6 +84,21 @@ void ssd1306_show(void);
 // replacement for ssd1306_clear().
 void ssd1306_set_display_on(bool on);
 
+// Debug/test aid: when enabled, every pixel write - from any caller,
+// through any of this driver's drawing functions (ssd1306_draw_pixel(),
+// ssd1306_invert_rect(), and so everything built on top of them: lines,
+// circles, rects, text, the console, ...) - only actually takes effect at
+// checkerboard positions (where (x ^ y) & 1 == 0); everywhere else the
+// write is silently skipped, leaving whatever was already there. The
+// result is that anything drawn comes out as a checkerboard pattern. Since
+// this is enforced at the driver's core pixel-write choke points rather
+// than by each caller, it doubles as a way to confirm some new drawing
+// path genuinely goes through them - code that bypasses them (writing to
+// the framebuffer directly) would show up solid, not checkerboarded.
+// ssd1306_clear() and ssd1306_scroll_up() are unaffected (they move/reset
+// existing content rather than draw new pixels). Off by default.
+void ssd1306_set_checkerboard_debug(bool enabled);
+
 #ifdef __cplusplus
 }
 #endif
