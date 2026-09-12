@@ -40,6 +40,13 @@ extern const ssd1306_font_t ssd1306_font_5x7;
 // "Chonk" - 7x11 glyphs, ASCII 32 (space) through 126 ('~').
 extern const ssd1306_font_t ssd1306_font_7x11;
 
+// "Mini" - 6x7 glyphs, ASCII 32 (space) through 127 (DEL).
+extern const ssd1306_font_t ssd1306_font_6x7;
+
+// "Narrow" - 7x11 glyphs (thinner strokes than ssd1306_font_7x11), ASCII 32
+// (space) through 126 ('~').
+extern const ssd1306_font_t ssd1306_font_7x11_narrow;
+
 // Initializes the display over the given i2c instance/address.
 // Caller must have already called i2c_init() and set GPIO functions/pull-ups.
 void ssd1306_init(i2c_inst_t *i2c, uint8_t addr);

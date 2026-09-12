@@ -9,8 +9,12 @@ in each project points at `lib/shared/<driver>/...`.
 ## Layout
 
 - `ssd1306/` - SSD1306 128x64 OLED driver (hardware I2C + a bit-banged
-  software-I2C variant for a second display on different pins), plus a
-  5x7 CP437 bitmap font and `ssd1306_draw_text()`.
+  software-I2C variant for a second display on different pins), plus
+  `ssd1306_draw_text()` (any font, see `ssd1306_font_t`) and several bitmap
+  fonts: `ssd1306_font_5x7` (CP437), `ssd1306_font_7x11` ("chonk"),
+  `ssd1306_font_7x11_narrow`, `ssd1306_font_6x7` ("mini"). Font source
+  images live in `ssd1306/fonts/`; the `.h` glyph data next to them is
+  generated from those images, not hand-written.
 - `encoder/` - KY-040-style rotary encoder (CLK/DT/SW), interrupt-driven
   rotation + polled/debounced button.
 - `button/` - a single debounced momentary push button (polled), same

@@ -1,6 +1,8 @@
 #include "ssd1306.h"
 #include "font5x7.h"
 #include "font7x11.h"
+#include "font6x7.h"
+#include "font7x11_narrow.h"
 #include <string.h>
 #include <stdlib.h>
 
@@ -147,6 +149,22 @@ const ssd1306_font_t ssd1306_font_7x11 = {
     .glyph_width = 7,
     .glyph_height = 11,
     .glyphs = kFont7x11Chonk,
+    .first_code = 32,
+    .glyph_count = 95,
+};
+
+const ssd1306_font_t ssd1306_font_6x7 = {
+    .glyph_width = 6,
+    .glyph_height = 7,
+    .glyphs = kFont6x7Mini,
+    .first_code = 32,
+    .glyph_count = 96,
+};
+
+const ssd1306_font_t ssd1306_font_7x11_narrow = {
+    .glyph_width = 7,
+    .glyph_height = 11,
+    .glyphs = kFont7x11Narrow,
     .first_code = 32,
     .glyph_count = 95,
 };
