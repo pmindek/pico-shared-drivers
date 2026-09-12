@@ -134,22 +134,34 @@ void ssd1306_invert_rect(int x, int y, int w, int h) {
     }
 }
 
-void ssd1306_draw_text(int x, int y, const char *text) {
+const ssd1306_font_t ssd1306_font_5x7 = {
+    .glyph_width = 5,
+    .glyph_height = 8,
+    .cell_width = SSD1306_CHAR_WIDTH,
+    .cell_height = SSD1306_CHAR_HEIGHT,
+    .glyphs = kFont5x7Cp437,
+};
+
+void ssd1306_draw_text_ex(int x, int y, const char *text, const ssd1306_font_t *font) {
     for (int i = 0; text[i] != '\0'; i++) {
-        const uint8_t *glyph = &kFont5x7Cp437[(uint8_t)text[i] * 5];
-        // Paint every pixel in the cell - on AND off, including the 1px
-        // gap column/row - not just the "on" ones. Otherwise redrawing a
+        const uint8_t *glyph = &font->glyphs[(uint8_t)text[i] * font->glyph_width];
+        // Paint every pixel in the cell - on AND off, including any gap
+        // column/row - not just the "on" ones. Otherwise redrawing a
         // different (e.g. narrower, or blank) character over an existing
         // one leaves ghost pixels behind, which is exactly what happens if
         // a caller relies on this to erase (e.g. backspace).
-        for (int col = 0; col < SSD1306_CHAR_WIDTH; col++) {
-            uint8_t bits = col < 5 ? glyph[col] : 0;
-            for (int row = 0; row < SSD1306_CHAR_HEIGHT; row++) {
-                bool on = (bits & (1 << row)) != 0;
-                ssd1306_draw_pixel(x + i * SSD1306_CHAR_WIDTH + col, y + row, on);
+        for (int col = 0; col < font->cell_width; col++) {
+            uint8_t bits = col < font->glyph_width ? glyph[col] : 0;
+            for (int row = 0; row < font->cell_height; row++) {
+                bool on = row < font->glyph_height && (bits & (1 << row)) != 0;
+                ssd1306_draw_pixel(x + i * font->cell_width + col, y + row, on);
             }
         }
     }
+}
+
+void ssd1306_draw_text(int x, int y, const char *text) {
+    ssd1306_draw_text_ex(x, y, text, &ssd1306_font_5x7);
 }
 
 void ssd1306_scroll_up(int rows) {
