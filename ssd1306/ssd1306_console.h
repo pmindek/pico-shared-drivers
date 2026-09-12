@@ -64,6 +64,27 @@ void ssd1306_console_highlight_rect(int col, int row, int cols, int rows);
 // Un-highlights every currently-highlighted character cell.
 void ssd1306_console_dehighlight_all(void);
 
+// Classic MS-DOS/CP437 double-line box-drawing character codes (Norton
+// Commander style), for use with ssd1306_console_draw_border() below or
+// directly with ssd1306_draw_text()/ssd1306_console_write().
+#define SSD1306_CONSOLE_BOX_TOP_LEFT     ((char)0xC9)
+#define SSD1306_CONSOLE_BOX_TOP_RIGHT    ((char)0xBB)
+#define SSD1306_CONSOLE_BOX_BOTTOM_LEFT  ((char)0xC8)
+#define SSD1306_CONSOLE_BOX_BOTTOM_RIGHT ((char)0xBC)
+#define SSD1306_CONSOLE_BOX_HORIZONTAL   ((char)0xCD)
+#define SSD1306_CONSOLE_BOX_VERTICAL     ((char)0xBA)
+
+// Draws a double-line border rectangle (outer size cols x rows, in
+// character cells) with its top-left at grid position (col, row). Pure
+// overlay: draws directly at those cells via ssd1306_draw_text(), same as
+// the highlight functions - does not touch the cursor, does not go through
+// write()/new_line(), and so can never trigger a scroll. Only the border
+// cells themselves (the outermost ring) are touched; whatever's already in
+// the interior is left alone - reserve blank cells there first (e.g. a
+// leading space in each content line, an empty line above/below) if you
+// don't want the border overdrawing real content.
+void ssd1306_console_draw_border(int col, int row, int cols, int rows);
+
 #ifdef __cplusplus
 }
 #endif
