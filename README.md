@@ -13,6 +13,9 @@ in each project points at `lib/shared/<driver>/...`.
   5x7 CP437 bitmap font and `ssd1306_draw_text()`.
 - `encoder/` - KY-040-style rotary encoder (CLK/DT/SW), interrupt-driven
   rotation + polled/debounced button.
+- `button/` - a single debounced momentary push button (polled), same
+  debounce logic as the encoder driver's SW pin, split out standalone for
+  buttons that aren't part of an encoder.
 
 More drivers belong here too - add a new subdirectory per driver rather
 than growing one grab-bag file.
