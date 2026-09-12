@@ -36,7 +36,7 @@ typedef struct {
 // "Adafruit" - Adafruit_GFX's own default font ("glcdfont"), 5x8 glyphs
 // (visually ~5x7; the 8th row is blank for most characters, used only for
 // descenders on a few), covering all 256 codes. Follows CP437's code-page
-// layout but isn't a real CP437 bitmap font - see ssd1306_font_9x16 for
+// layout but isn't a real CP437 bitmap font - see ssd1306_font_cp437 for
 // that.
 extern const ssd1306_font_t ssd1306_font_5x7;
 
@@ -56,12 +56,12 @@ extern const ssd1306_font_t ssd1306_font_4x7;
 // "Big" - 10x12 glyphs, ASCII 32 (space) through 126 ('~').
 extern const ssd1306_font_t ssd1306_font_10x12;
 
-// The full IBM PC/VGA codepage 437 at its authentic 9x16 text-mode size
-// (see generate_cp437_9x16.py), covering all 256 codes - not to be
-// confused with ssd1306_font_5x7 ("Adafruit"), a different, much smaller
-// font that just shares CP437's code-page layout; kept around for its own
-// sake, not superseded by this one.
-extern const ssd1306_font_t ssd1306_font_9x16;
+// "CP437" - the full IBM PC/VGA codepage 437 at its authentic 9x16
+// text-mode size (see generate_cp437.py), covering all 256 codes - not to
+// be confused with ssd1306_font_5x7 ("Adafruit"), a different, much
+// smaller font that just shares CP437's code-page layout; kept around for
+// its own sake, not superseded by this one.
+extern const ssd1306_font_t ssd1306_font_cp437;
 
 // An off-screen drawing target: a 1bpp paged framebuffer just like the
 // display's own, but any width/height - see ssd1306_set_target(). buf must

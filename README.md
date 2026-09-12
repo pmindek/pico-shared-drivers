@@ -16,8 +16,8 @@ in each project points at `lib/shared/<driver>/...`.
   font), `ssd1306_font_7x11` ("chonk"),
   `ssd1306_font_7x11_narrow`, `ssd1306_font_6x7` ("mini"),
   `ssd1306_font_4x7` ("micro"), `ssd1306_font_10x12` ("big"),
-  `ssd1306_font_9x16` (the full CP437 at its authentic VGA text-mode
-  size - see `generate_cp437_9x16.py`, a one-shot generator separate
+  `ssd1306_font_cp437` (the full CP437 at its authentic VGA text-mode
+  9x16 size - see `generate_cp437.py`, a one-shot generator separate
   from the PNG pipeline below, since this one's sourced from the
   classic VGA ROM font's byte data, not an image). Font source images
   live in

@@ -5,7 +5,7 @@
 // bitmap font - it just follows CP437's code-page layout (256 codes, same
 // smileys/symbols at the low codes, same printable ASCII range), redrawn
 // from scratch at a much smaller size than any real VGA/BIOS CP437 font -
-// see ssd1306_font_9x16 (cp437_9x16.h) for the genuine article. Copied
+// see ssd1306_font_cp437 (cp437.h) for the genuine article. Copied
 // verbatim (byte data untouched from here down) from Adafruit_GFX's
 // glcdfont.c - see
 // https://github.com/adafruit/Adafruit-GFX-Library/blob/master/glcdfont.c -

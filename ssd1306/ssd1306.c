@@ -5,7 +5,7 @@
 #include "narrow_7x11.h"
 #include "micro_4x7.h"
 #include "big_10x12.h"
-#include "cp437_9x16.h"
+#include "cp437.h"
 #include <string.h>
 #include <stdlib.h>
 
@@ -242,10 +242,10 @@ const ssd1306_font_t ssd1306_font_10x12 = {
     .glyph_count = 95,
 };
 
-const ssd1306_font_t ssd1306_font_9x16 = {
+const ssd1306_font_t ssd1306_font_cp437 = {
     .glyph_width = 9,
     .glyph_height = 16,
-    .glyphs = kFontCp437_9x16,
+    .glyphs = kFontCp437,
     .first_code = 0,
     .glyph_count = 256,
 };
