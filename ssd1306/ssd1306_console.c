@@ -144,3 +144,30 @@ void ssd1306_console_dehighlight_all(void)
     }
     ssd1306_show();
 }
+
+void ssd1306_console_draw_border(int col, int row, int cols, int rows)
+{
+    if (cols < 2 || rows < 2) return;
+
+    char cell[2] = {0, 0};
+    for (int r = 0; r < rows; r++) {
+        bool top = (r == 0);
+        bool bottom = (r == rows - 1);
+        for (int c = 0; c < cols; c++) {
+            bool left = (c == 0);
+            bool right = (c == cols - 1);
+
+            if (!top && !bottom && !left && !right) continue; // interior - leave whatever's there alone
+
+            if (top && left) cell[0] = SSD1306_CONSOLE_BOX_TOP_LEFT;
+            else if (top && right) cell[0] = SSD1306_CONSOLE_BOX_TOP_RIGHT;
+            else if (bottom && left) cell[0] = SSD1306_CONSOLE_BOX_BOTTOM_LEFT;
+            else if (bottom && right) cell[0] = SSD1306_CONSOLE_BOX_BOTTOM_RIGHT;
+            else if (top || bottom) cell[0] = SSD1306_CONSOLE_BOX_HORIZONTAL;
+            else cell[0] = SSD1306_CONSOLE_BOX_VERTICAL;
+
+            ssd1306_draw_text((col + c) * SSD1306_CHAR_WIDTH, (row + r) * SSD1306_CHAR_HEIGHT, cell);
+        }
+    }
+    ssd1306_show();
+}
