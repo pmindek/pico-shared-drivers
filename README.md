@@ -13,7 +13,8 @@ in each project points at `lib/shared/<driver>/...`.
   `ssd1306_draw_text()` (any font, see `ssd1306_font_t`) and several bitmap
   fonts: `ssd1306_font_5x7` (CP437), `ssd1306_font_7x11` ("chonk"),
   `ssd1306_font_7x11_narrow`, `ssd1306_font_6x7` ("mini"),
-  `ssd1306_font_4x7` ("micro"). Font source images live in
+  `ssd1306_font_4x7` ("micro"), `ssd1306_font_10x12` ("big"). Font source
+  images live in
   `ssd1306/fonts/<name>_<W>x<H>.png` (a horizontal strip of WxH glyph cells
   starting at ASCII 32); the `.h` glyph data next to them is generated from
   those images via `ssd1306/generate_fonts.py`, not hand-written - run it

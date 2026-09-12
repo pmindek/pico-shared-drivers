@@ -50,6 +50,9 @@ extern const ssd1306_font_t ssd1306_font_7x11_narrow;
 // "Micro" - 4x7 glyphs, ASCII 32 (space) through 126 ('~').
 extern const ssd1306_font_t ssd1306_font_4x7;
 
+// "Big" - 10x12 glyphs, ASCII 32 (space) through 126 ('~').
+extern const ssd1306_font_t ssd1306_font_10x12;
+
 // An off-screen drawing target: a 1bpp paged framebuffer just like the
 // display's own, but any width/height - see ssd1306_set_target(). buf must
 // be at least SSD1306_CANVAS_BYTES(width, height) bytes, caller-owned (nothing
