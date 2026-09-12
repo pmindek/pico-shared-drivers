@@ -19,8 +19,13 @@ in each project points at `lib/shared/<driver>/...`.
   starting at ASCII 32); the `.h` glyph data next to them is generated from
   those images via `ssd1306/generate_fonts.py`, not hand-written - run it
   (needs Pillow) after adding or editing a font PNG to regenerate its
-  header. New fonts still need a couple lines in `ssd1306.h`/`.c` to expose
-  them as a named `ssd1306_font_t`. `ssd1306_set_target()` redirects all of
+  header, or just double-click `ssd1306/update_fonts.bat`, which runs it
+  and also commits the result here and propagates/rebuilds/commits it in
+  both `bats` and `bat gyros` (see that file's own comment for the exact
+  steps and the hardcoded paths it assumes). New fonts still need a
+  couple lines in `ssd1306.h`/`.c` to expose them as a named
+  `ssd1306_font_t` - neither script does that part for you.
+  `ssd1306_set_target()` redirects all of
   the above to draw into an off-screen `ssd1306_canvas_t` instead of the
   display, and `ssd1306_console.c` (a simple cursor-tracking text console
   built on `ssd1306_draw_text()`) works the same way against either. Built
