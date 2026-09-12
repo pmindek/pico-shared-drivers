@@ -27,6 +27,7 @@ void ssd1306_draw_line(int x0, int y0, int x1, int y1, bool on);
 void ssd1306_draw_circle(int cx, int cy, int r, bool on);
 void ssd1306_fill_circle(int cx, int cy, int r, bool on);
 void ssd1306_fill_rect(int x, int y, int w, int h, bool on);
+void ssd1306_invert_rect(int x, int y, int w, int h);
 
 // Draws text (5x7 CP437 font, 6px per character advance) with its top-left
 // corner at (x, y). Characters that run off the right/bottom edge are

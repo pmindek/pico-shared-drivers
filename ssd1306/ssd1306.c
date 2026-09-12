@@ -122,6 +122,18 @@ void ssd1306_fill_rect(int x, int y, int w, int h, bool on) {
     }
 }
 
+void ssd1306_invert_rect(int x, int y, int w, int h) {
+    for (int j = y; j < y + h; j++) {
+        if (j < 0 || j >= SSD1306_HEIGHT) continue;
+        for (int i = x; i < x + w; i++) {
+            if (i < 0 || i >= SSD1306_WIDTH) continue;
+            size_t idx = i + (j / 8) * SSD1306_WIDTH;
+            uint8_t mask = 1 << (j % 8);
+            s_buf[idx] ^= mask;
+        }
+    }
+}
+
 void ssd1306_draw_text(int x, int y, const char *text) {
     for (int i = 0; text[i] != '\0'; i++) {
         const uint8_t *glyph = &kFont5x7Cp437[(uint8_t)text[i] * 5];

@@ -37,6 +37,22 @@ void ssd1306_console_write_ln(const char *text);
 // (like a normal terminal) and stays on the now-blank bottom line.
 void ssd1306_console_new_line(void);
 
+// Highlighting inverts a character cell's pixels and is tracked per cell -
+// highlighting an already-highlighted cell is a no-op, so calling this
+// twice on the same character does NOT toggle it back off (which is what
+// would happen from blindly inverting the pixels on every call).
+
+// Highlights the character cell containing pixel (x, y).
+void ssd1306_console_highlight_char(int x, int y);
+
+// Highlights every character cell touched by the (x, y, w, h) pixel
+// rectangle (a cell counts as touched if the rectangle overlaps any part of
+// it - whole cells get highlighted, not partial pixels).
+void ssd1306_console_highlight_rect(int x, int y, int w, int h);
+
+// Un-highlights every currently-highlighted character cell.
+void ssd1306_console_dehighlight_all(void);
+
 #ifdef __cplusplus
 }
 #endif
