@@ -110,7 +110,7 @@ static void highlight_cell(int col, int row)
     if (col < 0 || col >= SSD1306_CONSOLE_COLS || row < 0 || row >= SSD1306_CONSOLE_ROWS) return;
     if (s_highlighted[row][col]) return;
     s_highlighted[row][col] = true;
-    ssd1306_invert_rect(col * SSD1306_CHAR_WIDTH, row * SSD1306_CHAR_HEIGHT, SSD1306_CHAR_WIDTH, SSD1306_CHAR_HEIGHT);
+    ssd1306_invert_rect(col * SSD1306_CHAR_WIDTH, row * SSD1306_CHAR_HEIGHT, SSD1306_CHAR_WIDTH, SSD1306_CHAR_HEIGHT - 1);
 }
 
 void ssd1306_console_highlight_char(int col, int row)

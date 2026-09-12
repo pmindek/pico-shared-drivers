@@ -10,7 +10,7 @@
 // ssd1306_draw_text()'s per-character advance - the font glyph itself is
 // 5 columns x 8 rows, plus a 1px gap between characters.
 #define SSD1306_CHAR_WIDTH  6
-#define SSD1306_CHAR_HEIGHT 8
+#define SSD1306_CHAR_HEIGHT 9
 
 #ifdef __cplusplus
 extern "C" {
