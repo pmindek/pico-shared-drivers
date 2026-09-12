@@ -47,6 +47,13 @@ void ssd1306_console_set_line_spacing(int spacing_px);
 int ssd1306_console_cols(void);
 int ssd1306_console_rows(void);
 
+// Pixel size of one console cell for the current font/spacing - for
+// positioning your own direct ssd1306_draw_text() calls (or anything else)
+// so they land exactly where the console's own grid - and so
+// ssd1306_console_highlight_rect() and friends - expects them.
+int ssd1306_console_cell_width(void);
+int ssd1306_console_cell_height(void);
+
 // Clears the screen, pushes it, and resets the cursor to the top-left.
 void ssd1306_console_clear(void);
 

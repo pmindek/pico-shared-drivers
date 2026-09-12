@@ -64,6 +64,16 @@ int ssd1306_console_rows(void)
     return clamp_rows((SSD1306_HEIGHT + ch - 1) / ch);
 }
 
+int ssd1306_console_cell_width(void)
+{
+    return cell_width();
+}
+
+int ssd1306_console_cell_height(void)
+{
+    return cell_height();
+}
+
 static void clear_highlight_tracking(void)
 {
     for (int row = 0; row < SSD1306_CONSOLE_MAX_ROWS; row++) {
