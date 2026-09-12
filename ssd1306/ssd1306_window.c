@@ -75,6 +75,14 @@ void ssd1306_window_draw(const ssd1306_window_t *win, int scroll_y) {
     ssd1306_blit_canvas(&win->canvas, 0, scroll_y, SSD1306_WINDOW_CONTENT_WIDTH, win->viewport_height, 0,
                          win->viewport_y);
 
+    // The 2px gap between the content area and the scrollbar (both cleared
+    // above/below, but never this sliver in between) - without this,
+    // anything drawn there before this window existed would stay stuck
+    // forever, same as the title bar above.
+    int gap_x = SSD1306_WINDOW_CONTENT_WIDTH;
+    int gap_w = (SSD1306_WIDTH - 3) - SSD1306_WINDOW_CONTENT_WIDTH;
+    if (gap_w > 0) ssd1306_fill_rect(gap_x, win->viewport_y, gap_w, win->viewport_height, false);
+
     // Always called (not just when the content doesn't fit) - it clears its
     // own footprint either way, which is exactly what's needed if content
     // that used to need a scrollbar no longer does.
