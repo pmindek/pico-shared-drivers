@@ -1,13 +1,18 @@
 #pragma once
 
-// Classic IBM PC / codepage 437 5x7 bitmap font, 256 characters x 5 bytes
-// (one byte per column, bit 0 = top pixel). Copied verbatim (byte data
-// untouched from here down) from Adafruit_GFX's glcdfont.c - see
+// Adafruit_GFX's own default font ("glcdfont"), 5x7 bitmap, 256 characters
+// x 5 bytes (one byte per column, bit 0 = top pixel). NOT a real CP437
+// bitmap font - it just follows CP437's code-page layout (256 codes, same
+// smileys/symbols at the low codes, same printable ASCII range), redrawn
+// from scratch at a much smaller size than any real VGA/BIOS CP437 font -
+// see ssd1306_font_9x16 (cp437_9x16.h) for the genuine article. Copied
+// verbatim (byte data untouched from here down) from Adafruit_GFX's
+// glcdfont.c - see
 // https://github.com/adafruit/Adafruit-GFX-Library/blob/master/glcdfont.c -
 // only the surrounding wrapper (this comment, the guard, dropping the
 // AVR/PROGMEM-specific bits that don't apply here) was changed.
 
-static const unsigned char kFont5x7Cp437[] = {
+static const unsigned char kFontAdafruit5x7[] = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x3E, 0x5B, 0x4F, 0x5B, 0x3E, 0x3E, 0x6B,
     0x4F, 0x6B, 0x3E, 0x1C, 0x3E, 0x7C, 0x3E, 0x1C, 0x18, 0x3C, 0x7E, 0x3C,
     0x18, 0x1C, 0x57, 0x7D, 0x57, 0x1C, 0x1C, 0x5E, 0x7F, 0x5E, 0x1C, 0x00,

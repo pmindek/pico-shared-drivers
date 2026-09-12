@@ -1,5 +1,5 @@
 #include "ssd1306.h"
-#include "font5x7.h"
+#include "adafruit_5x7.h"
 #include "chonk_7x11.h"
 #include "mini_6x7.h"
 #include "narrow_7x11.h"
@@ -197,7 +197,7 @@ void ssd1306_blit_canvas(const ssd1306_canvas_t *src, int src_x, int src_y, int 
 const ssd1306_font_t ssd1306_font_5x7 = {
     .glyph_width = 5,
     .glyph_height = 8,
-    .glyphs = kFont5x7Cp437,
+    .glyphs = kFontAdafruit5x7,
     .first_code = 0,
     .glyph_count = 256,
 };

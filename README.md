@@ -11,7 +11,9 @@ in each project points at `lib/shared/<driver>/...`.
 - `ssd1306/` - SSD1306 128x64 OLED driver (hardware I2C + a bit-banged
   software-I2C variant for a second display on different pins), plus
   `ssd1306_draw_text()` (any font, see `ssd1306_font_t`) and several bitmap
-  fonts: `ssd1306_font_5x7` (CP437), `ssd1306_font_7x11` ("chonk"),
+  fonts: `ssd1306_font_5x7` ("Adafruit" - Adafruit_GFX's own default
+  font; follows CP437's code-page layout but isn't a real CP437 bitmap
+  font), `ssd1306_font_7x11` ("chonk"),
   `ssd1306_font_7x11_narrow`, `ssd1306_font_6x7` ("mini"),
   `ssd1306_font_4x7` ("micro"), `ssd1306_font_10x12` ("big"),
   `ssd1306_font_9x16` (the full CP437 at its authentic VGA text-mode
