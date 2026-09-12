@@ -11,7 +11,8 @@ in each project points at `lib/shared/<driver>/...`.
 - `ssd1306/` - SSD1306 128x64 OLED driver (hardware I2C + a bit-banged
   software-I2C variant for a second display on different pins), plus a
   5x7 CP437 bitmap font and `ssd1306_draw_text()`.
+- `encoder/` - KY-040-style rotary encoder (CLK/DT/SW), interrupt-driven
+  rotation + polled/debounced button.
 
-More drivers (e.g. a rotary encoder, once both projects have one) belong
-here too - add a new subdirectory per driver rather than growing one grab-bag
-file.
+More drivers belong here too - add a new subdirectory per driver rather
+than growing one grab-bag file.
