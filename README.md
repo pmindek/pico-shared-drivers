@@ -19,7 +19,14 @@ in each project points at `lib/shared/<driver>/...`.
   those images via `ssd1306/generate_fonts.py`, not hand-written - run it
   (needs Pillow) after adding or editing a font PNG to regenerate its
   header. New fonts still need a couple lines in `ssd1306.h`/`.c` to expose
-  them as a named `ssd1306_font_t`.
+  them as a named `ssd1306_font_t`. `ssd1306_set_target()` redirects all of
+  the above to draw into an off-screen `ssd1306_canvas_t` instead of the
+  display, and `ssd1306_console.c` (a simple cursor-tracking text console
+  built on `ssd1306_draw_text()`) works the same way against either. Built
+  on top of that: `ssd1306_scrollbar.h` (a reusable vertical scrollbar
+  overlay) and `ssd1306_window.h` (a reusable "window" - title, divider,
+  scrollable content area backed by an off-screen canvas, scrollbar drawn
+  automatically when the content doesn't fit).
 - `encoder/` - KY-040-style rotary encoder (CLK/DT/SW), interrupt-driven
   rotation + polled/debounced button.
 - `button/` - a single debounced momentary push button (polled), same
