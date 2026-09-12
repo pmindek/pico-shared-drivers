@@ -1,5 +1,6 @@
 #include "ssd1306.h"
 #include "font5x7.h"
+#include "font7x11.h"
 #include <string.h>
 #include <stdlib.h>
 
@@ -140,20 +141,40 @@ const ssd1306_font_t ssd1306_font_5x7 = {
     .cell_width = SSD1306_CHAR_WIDTH,
     .cell_height = SSD1306_CHAR_HEIGHT,
     .glyphs = kFont5x7Cp437,
+    .first_code = 0,
+    .glyph_count = 256,
+};
+
+const ssd1306_font_t ssd1306_font_7x11 = {
+    .glyph_width = 7,
+    .glyph_height = 11,
+    .cell_width = 7,
+    .cell_height = 11,
+    .glyphs = kFont7x11Chonk,
+    .first_code = 32,
+    .glyph_count = 95,
 };
 
 void ssd1306_draw_text_ex(int x, int y, const char *text, const ssd1306_font_t *font) {
+    int bytes_per_col = (font->glyph_height + 7) / 8;
+
     for (int i = 0; text[i] != '\0'; i++) {
-        const uint8_t *glyph = &font->glyphs[(uint8_t)text[i] * font->glyph_width];
+        uint8_t code = (uint8_t)text[i];
+        bool has_glyph = code >= font->first_code && code - font->first_code < font->glyph_count;
+        const uint8_t *glyph =
+            has_glyph ? &font->glyphs[(code - font->first_code) * font->glyph_width * bytes_per_col] : NULL;
+
         // Paint every pixel in the cell - on AND off, including any gap
         // column/row - not just the "on" ones. Otherwise redrawing a
         // different (e.g. narrower, or blank) character over an existing
         // one leaves ghost pixels behind, which is exactly what happens if
-        // a caller relies on this to erase (e.g. backspace).
+        // a caller relies on this to erase (e.g. backspace). A code outside
+        // the font's range (has_glyph false) just paints the whole cell
+        // blank, same as any other "off" pixel.
         for (int col = 0; col < font->cell_width; col++) {
-            uint8_t bits = col < font->glyph_width ? glyph[col] : 0;
+            const uint8_t *col_bytes = (glyph && col < font->glyph_width) ? &glyph[col * bytes_per_col] : NULL;
             for (int row = 0; row < font->cell_height; row++) {
-                bool on = row < font->glyph_height && (bits & (1 << row)) != 0;
+                bool on = col_bytes && row < font->glyph_height && (col_bytes[row / 8] & (1 << (row % 8))) != 0;
                 ssd1306_draw_pixel(x + i * font->cell_width + col, y + row, on);
             }
         }

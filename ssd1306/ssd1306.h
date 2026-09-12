@@ -21,28 +21,40 @@
 extern "C" {
 #endif
 
-// A font: 256 fixed-width glyphs (one per byte value, CP437-style), stored
-// column-major - `glyphs[code * glyph_width + col]` is one column of the
-// glyph for character `code`, bit N of that byte = row N. glyph_height must
-// be <= 8 so a column always fits in one byte.
+// A font: fixed-width glyphs for a contiguous range of character codes
+// starting at first_code (e.g. 32 = space), stored column-major -
+// glyphs[(code - first_code) * glyph_width * bytes_per_col(font) + col *
+// bytes_per_col(font) + byte] is one byte of one column of one glyph; bit N
+// of that column (byte N/8, bit N%8) = row N. bytes_per_col(font) is
+// (glyph_height + 7) / 8 - glyph_height isn't limited to 8 like a single
+// font byte would cap it to; a tall font just uses more bytes per column.
+// Characters outside [first_code, first_code + glyph_count) draw as blank.
 //
 // cell_width/cell_height are the full per-character advance, i.e. what
 // ssd1306_draw_text_ex() actually steps by and repaints - normally a bit
-// bigger than glyph_width/glyph_height so there's a blank column/row of
-// gap between characters/lines; a font with no built-in gap just sets
+// bigger than glyph_width/glyph_height so there's a blank column/row of gap
+// between characters/lines; a font with no built-in gap (e.g. because its
+// source image already had gaps baked into each glyph cell) just sets
 // cell_width == glyph_width (and/or cell_height == glyph_height).
 typedef struct {
     uint8_t glyph_width;
     uint8_t glyph_height;
     uint8_t cell_width;
     uint8_t cell_height;
-    const uint8_t *glyphs; // glyph_width bytes per character code, 256 codes
+    const uint8_t *glyphs;
+    uint8_t first_code;
+    uint16_t glyph_count;
 } ssd1306_font_t;
 
 // The font ssd1306_draw_text() uses - CP437, 5x8 glyphs (visually ~5x7; the
 // 8th row is blank for most characters, used only for descenders on a few),
-// 6x9 cell (1px gap column + 1px gap row).
+// 6x9 cell (1px gap column + 1px gap row), covering all 256 codes.
 extern const ssd1306_font_t ssd1306_font_5x7;
+
+// "Chonk" - 7x11 glyphs, ASCII 32 (space) through 126 ('~'), 7x11 cell (no
+// added gap - the source image's glyph cells already have their own
+// spacing baked in). See font7x11.h.
+extern const ssd1306_font_t ssd1306_font_7x11;
 
 // Initializes the display over the given i2c instance/address.
 // Caller must have already called i2c_init() and set GPIO functions/pull-ups.
