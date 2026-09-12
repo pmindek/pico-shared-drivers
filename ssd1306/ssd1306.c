@@ -1,9 +1,9 @@
 #include "ssd1306.h"
 #include "font5x7.h"
-#include "font7x11.h"
-#include "font6x7.h"
-#include "font7x11_narrow.h"
-#include "font4x7.h"
+#include "chonk_7x11.h"
+#include "mini_6x7.h"
+#include "narrow_7x11.h"
+#include "micro_4x7.h"
 #include <string.h>
 #include <stdlib.h>
 
@@ -163,7 +163,7 @@ const ssd1306_font_t ssd1306_font_5x7 = {
 const ssd1306_font_t ssd1306_font_7x11 = {
     .glyph_width = 7,
     .glyph_height = 11,
-    .glyphs = kFont7x11Chonk,
+    .glyphs = kFontChonk7x11,
     .first_code = 32,
     .glyph_count = 95,
 };
@@ -171,7 +171,7 @@ const ssd1306_font_t ssd1306_font_7x11 = {
 const ssd1306_font_t ssd1306_font_6x7 = {
     .glyph_width = 6,
     .glyph_height = 7,
-    .glyphs = kFont6x7Mini,
+    .glyphs = kFontMini6x7,
     .first_code = 32,
     .glyph_count = 96,
 };
@@ -179,7 +179,7 @@ const ssd1306_font_t ssd1306_font_6x7 = {
 const ssd1306_font_t ssd1306_font_7x11_narrow = {
     .glyph_width = 7,
     .glyph_height = 11,
-    .glyphs = kFont7x11Narrow,
+    .glyphs = kFontNarrow7x11,
     .first_code = 32,
     .glyph_count = 95,
 };
@@ -187,7 +187,7 @@ const ssd1306_font_t ssd1306_font_7x11_narrow = {
 const ssd1306_font_t ssd1306_font_4x7 = {
     .glyph_width = 4,
     .glyph_height = 7,
-    .glyphs = kFont4x7Micro,
+    .glyphs = kFontMicro4x7,
     .first_code = 32,
     .glyph_count = 95,
 };
