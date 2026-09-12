@@ -31,6 +31,8 @@ static void encoder_update(encoder_t *enc)
     uint8_t new_state = read_pin_state(enc);
     if (new_state == enc->pin_state) return; // no real change (the other pin's IRQ already handled it)
 
+    enc->last_rotation_us = time_us_64(); // any real edge counts as activity, not just a completed click
+
     int8_t step = kQuadratureTable[(enc->pin_state << 2) | new_state];
     enc->pin_state = new_state;
 
@@ -77,6 +79,7 @@ void encoder_init(encoder_t *encoder, uint clk_pin, uint dt_pin, uint sw_pin)
     encoder->sw_pin = sw_pin;
     encoder->accum = 0;
     encoder->delta = 0;
+    encoder->last_rotation_us = 0;
     encoder->sw_was_pressed = false;
     encoder->sw_last_change_us = 0;
 
@@ -132,4 +135,11 @@ bool encoder_button_pressed(encoder_t *encoder)
         triggered = is_pressed;
     }
     return triggered;
+}
+
+uint64_t encoder_get_last_activity_us(const encoder_t *encoder)
+{
+    uint64_t rotation = encoder->last_rotation_us;
+    uint64_t button = encoder->sw_last_change_us;
+    return rotation > button ? rotation : button;
 }

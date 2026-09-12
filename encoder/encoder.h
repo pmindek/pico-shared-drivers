@@ -35,9 +35,10 @@ typedef struct {
     uint clk_pin;
     uint dt_pin;
     uint sw_pin;
-    volatile uint8_t pin_state; // current 2-bit (CLK<<1 | DT) state
-    volatile int8_t accum;      // steps accumulated since the last rest position
-    volatile int delta;         // net completed clicks since the last encoder_take_delta()
+    volatile uint8_t pin_state;      // current 2-bit (CLK<<1 | DT) state
+    volatile int8_t accum;           // steps accumulated since the last rest position
+    volatile int delta;              // net completed clicks since the last encoder_take_delta()
+    volatile uint64_t last_rotation_us; // last time pin_state changed at all (any edge, not just a completed click)
     bool sw_was_pressed;
     uint64_t sw_last_change_us;
 } encoder_t;
@@ -55,6 +56,14 @@ int encoder_take_delta(encoder_t *encoder);
 // True once per physical button press (on the press edge, debounced), not
 // while held.
 bool encoder_button_pressed(encoder_t *encoder);
+
+// Timestamp (time_us_64()) of the most recent rotation edge or button state
+// change (press or release) on this encoder - unlike
+// encoder_take_delta()/encoder_button_pressed(), reading this has no side
+// effects, so it's safe to poll from code that isn't the "owner" consuming
+// actual encoder events (e.g. an idle-timeout that just wants to know "did
+// anything happen recently").
+uint64_t encoder_get_last_activity_us(const encoder_t *encoder);
 
 #ifdef __cplusplus
 }

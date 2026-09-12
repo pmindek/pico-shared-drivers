@@ -28,6 +28,13 @@ void button_init(button_t *button, uint pin);
 // held.
 bool button_pressed(button_t *button);
 
+// Timestamp (time_us_64()) of the most recent debounced state change
+// (press or release) - unlike button_pressed(), reading this has no side
+// effects, so it's safe to poll from code that isn't the "owner" consuming
+// actual press events (e.g. an idle-timeout that just wants to know "did
+// anything happen recently").
+uint64_t button_get_last_change_us(const button_t *button);
+
 #ifdef __cplusplus
 }
 #endif

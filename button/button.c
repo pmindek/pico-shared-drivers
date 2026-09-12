@@ -25,3 +25,8 @@ bool button_pressed(button_t *button)
     }
     return triggered;
 }
+
+uint64_t button_get_last_change_us(const button_t *button)
+{
+    return button->last_change_us;
+}
