@@ -53,6 +53,12 @@ extern const ssd1306_font_t ssd1306_font_4x7;
 // "Big" - 10x12 glyphs, ASCII 32 (space) through 126 ('~').
 extern const ssd1306_font_t ssd1306_font_10x12;
 
+// The full IBM PC/VGA codepage 437 at its authentic 9x16 text-mode size
+// (see generate_cp437_9x16.py), covering all 256 codes - not to be
+// confused with ssd1306_font_5x7, a different (much smaller) CP437-derived
+// font kept around for its own sake, not superseded by this one.
+extern const ssd1306_font_t ssd1306_font_9x16;
+
 // An off-screen drawing target: a 1bpp paged framebuffer just like the
 // display's own, but any width/height - see ssd1306_set_target(). buf must
 // be at least SSD1306_CANVAS_BYTES(width, height) bytes, caller-owned (nothing

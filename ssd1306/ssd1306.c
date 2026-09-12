@@ -5,6 +5,7 @@
 #include "narrow_7x11.h"
 #include "micro_4x7.h"
 #include "big_10x12.h"
+#include "cp437_9x16.h"
 #include <string.h>
 #include <stdlib.h>
 
@@ -239,6 +240,14 @@ const ssd1306_font_t ssd1306_font_10x12 = {
     .glyphs = kFontBig10x12,
     .first_code = 32,
     .glyph_count = 95,
+};
+
+const ssd1306_font_t ssd1306_font_9x16 = {
+    .glyph_width = 9,
+    .glyph_height = 16,
+    .glyphs = kFontCp437_9x16,
+    .first_code = 0,
+    .glyph_count = 256,
 };
 
 void ssd1306_draw_text(int x, int y, const char *text, const ssd1306_font_t *font, int spacing_px) {
