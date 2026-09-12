@@ -8,9 +8,9 @@ void ssd1306_window_init(ssd1306_window_t *win, const char *title, const ssd1306
     win->title_font = title_font;
 
     // Divider sits 1px below the title's own glyph height; the content
-    // viewport starts 1px below that, matching screen_sequence.cpp's
-    // original hand-drawn layout exactly.
-    win->viewport_y = title_font->glyph_height + 2;
+    // viewport starts 2px below that - 1px for the divider's own row, plus
+    // 1px of blank breathing room before the content begins.
+    win->viewport_y = title_font->glyph_height + 3;
     win->viewport_height = SSD1306_HEIGHT - win->viewport_y;
     if (win->viewport_height < 0) win->viewport_height = 0;
 
