@@ -5,6 +5,15 @@ static int s_cursor_x = 0;
 static int s_cursor_y = 0;
 static bool s_auto_newline = true;
 
+// Highlighting is shifted 1px up from the cell's actual pixel bounds, so its
+// bottom edge lands on the (always-blank) gap row instead of the cell's own
+// last text row - a deliberate 1px unhighlighted border under highlighted
+// text, for readability. The cost: the top text row of the cell above gets
+// swallowed into the highlight instead. On row 0, the shifted-up top edge is
+// simply clipped by ssd1306_invert_rect()'s bounds check, losing that 1px
+// border on the very first line - accepted as harmless.
+#define SSD1306_CONSOLE_HIGHLIGHT_Y_OFFSET (-1)
+
 // Highlight tracking, one flag per character cell.
 static bool s_highlighted[SSD1306_CONSOLE_ROWS][SSD1306_CONSOLE_COLS];
 
@@ -110,10 +119,14 @@ static void highlight_cell(int col, int row)
     if (col < 0 || col >= SSD1306_CONSOLE_COLS || row < 0 || row >= SSD1306_CONSOLE_ROWS) return;
     if (s_highlighted[row][col]) return;
     s_highlighted[row][col] = true;
-    // Full cell height, including the 1px gap row - must match
-    // ssd1306_console_dehighlight_all()'s invert exactly, or the two XORs
-    // don't cancel out and a row of pixels is left stuck inverted.
-    ssd1306_invert_rect(col * SSD1306_CHAR_WIDTH, row * SSD1306_CHAR_HEIGHT, SSD1306_CHAR_WIDTH, SSD1306_CHAR_HEIGHT);
+    // Full cell height, shifted 1px up (see SSD1306_CONSOLE_HIGHLIGHT_Y_OFFSET)
+    // so the highlight's own bottom row lands on the gap row instead of the
+    // cell's last text row, leaving a 1px unhighlighted border under the
+    // text - readability, at the cost of eating into the row above instead.
+    // Must match ssd1306_console_dehighlight_all()'s invert exactly, or the
+    // two XORs don't cancel out and a row of pixels is left stuck inverted.
+    ssd1306_invert_rect(col * SSD1306_CHAR_WIDTH, row * SSD1306_CHAR_HEIGHT + SSD1306_CONSOLE_HIGHLIGHT_Y_OFFSET,
+                         SSD1306_CHAR_WIDTH, SSD1306_CHAR_HEIGHT);
 }
 
 void ssd1306_console_highlight_char(int col, int row)
@@ -139,37 +152,11 @@ void ssd1306_console_dehighlight_all(void)
     for (int row = 0; row < SSD1306_CONSOLE_ROWS; row++) {
         for (int col = 0; col < SSD1306_CONSOLE_COLS; col++) {
             if (s_highlighted[row][col]) {
-                ssd1306_invert_rect(col * SSD1306_CHAR_WIDTH, row * SSD1306_CHAR_HEIGHT, SSD1306_CHAR_WIDTH,
-                                     SSD1306_CHAR_HEIGHT);
+                ssd1306_invert_rect(col * SSD1306_CHAR_WIDTH,
+                                     row * SSD1306_CHAR_HEIGHT + SSD1306_CONSOLE_HIGHLIGHT_Y_OFFSET,
+                                     SSD1306_CHAR_WIDTH, SSD1306_CHAR_HEIGHT);
                 s_highlighted[row][col] = false;
             }
-        }
-    }
-    ssd1306_show();
-}
-
-void ssd1306_console_draw_border(int col, int row, int cols, int rows)
-{
-    if (cols < 2 || rows < 2) return;
-
-    char cell[2] = {0, 0};
-    for (int r = 0; r < rows; r++) {
-        bool top = (r == 0);
-        bool bottom = (r == rows - 1);
-        for (int c = 0; c < cols; c++) {
-            bool left = (c == 0);
-            bool right = (c == cols - 1);
-
-            if (!top && !bottom && !left && !right) continue; // interior - leave whatever's there alone
-
-            if (top && left) cell[0] = SSD1306_CONSOLE_BOX_TOP_LEFT;
-            else if (top && right) cell[0] = SSD1306_CONSOLE_BOX_TOP_RIGHT;
-            else if (bottom && left) cell[0] = SSD1306_CONSOLE_BOX_BOTTOM_LEFT;
-            else if (bottom && right) cell[0] = SSD1306_CONSOLE_BOX_BOTTOM_RIGHT;
-            else if (top || bottom) cell[0] = SSD1306_CONSOLE_BOX_HORIZONTAL;
-            else cell[0] = SSD1306_CONSOLE_BOX_VERTICAL;
-
-            ssd1306_draw_text((col + c) * SSD1306_CHAR_WIDTH, (row + r) * SSD1306_CHAR_HEIGHT, cell);
         }
     }
     ssd1306_show();

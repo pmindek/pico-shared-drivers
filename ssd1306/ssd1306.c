@@ -134,61 +134,16 @@ void ssd1306_invert_rect(int x, int y, int w, int h) {
     }
 }
 
-typedef struct {
-    uint8_t code;
-    uint16_t columns[SSD1306_CHAR_WIDTH]; // bit N = row N (bit 8 = the gap row)
-} box_glyph_t;
-
-// The double-line box-drawing characters (see ssd1306_console.h's
-// SSD1306_CONSOLE_BOX_*) get their own full-cell glyphs, filling
-// SSD1306_CHAR_WIDTH x SSD1306_CHAR_HEIGHT (6x9) instead of font5x7's
-// regular 5x8, so adjacent box characters form continuous lines instead of
-// a dotted one with a 1px gap between every character. font5x7.h itself
-// stays untouched (a byte-verified public-domain source) - these are
-// separate, purpose-built glyphs, not derived from its existing
-// 0xC9/0xBB/0xC8/0xBC/0xCD/0xBA entries (an earlier version tried extending
-// those, but they have their own internal asymmetric notches that made
-// that approach keep reproducing gaps/stray pixels).
-//
-// Built instead from two simple rules, verified by rendering a full
-// simulated box (corner+H+H+H+corner, and V stacked on blank on V), not
-// just individual glyphs in isolation:
-//   - a solid double horizontal line at rows 2 and 4 (matching H exactly),
-//     spanning columns 2 through 5 for left corners (5 = the gap column, so
-//     it continues seamlessly into a following H) or 0 through 4 for right
-//     corners (nothing follows those here, so no gap-column fill)
-//   - a solid double vertical line at columns 2 and 4, spanning rows 2-8
-//     for top corners (continues down into a V on the next line) or rows
-//     0-4 for bottom corners (receives a V from the line above)
-// The two rules' pixels simply overlap where they cross - no separate
-// corner-junction case needed.
-static const box_glyph_t kBoxGlyphs[] = {
-    {0xCD, {0x014, 0x014, 0x014, 0x014, 0x014, 0x014}}, // horizontal
-    {0xBA, {0x000, 0x000, 0x1FF, 0x000, 0x1FF, 0x000}}, // vertical
-    {0xC9, {0x000, 0x000, 0x1FC, 0x014, 0x1FC, 0x014}}, // top-left
-    {0xBB, {0x014, 0x014, 0x1FC, 0x014, 0x1FC, 0x000}}, // top-right
-    {0xC8, {0x000, 0x000, 0x01F, 0x014, 0x01F, 0x014}}, // bottom-left
-    {0xBC, {0x014, 0x014, 0x01F, 0x014, 0x01F, 0x000}}, // bottom-right
-};
-
-static const uint16_t *find_box_glyph(uint8_t code) {
-    for (int i = 0; i < (int)(sizeof(kBoxGlyphs) / sizeof(kBoxGlyphs[0])); i++) {
-        if (kBoxGlyphs[i].code == code) return kBoxGlyphs[i].columns;
-    }
-    return NULL;
-}
-
 void ssd1306_draw_text(int x, int y, const char *text) {
     for (int i = 0; text[i] != '\0'; i++) {
-        const uint16_t *box = find_box_glyph((uint8_t)text[i]);
-        const uint8_t *glyph = box ? NULL : &kFont5x7Cp437[(uint8_t)text[i] * 5];
+        const uint8_t *glyph = &kFont5x7Cp437[(uint8_t)text[i] * 5];
         // Paint every pixel in the cell - on AND off, including the 1px
         // gap column/row - not just the "on" ones. Otherwise redrawing a
         // different (e.g. narrower, or blank) character over an existing
         // one leaves ghost pixels behind, which is exactly what happens if
         // a caller relies on this to erase (e.g. backspace).
         for (int col = 0; col < SSD1306_CHAR_WIDTH; col++) {
-            uint16_t bits = box ? box[col] : (col < 5 ? glyph[col] : 0);
+            uint8_t bits = col < 5 ? glyph[col] : 0;
             for (int row = 0; row < SSD1306_CHAR_HEIGHT; row++) {
                 bool on = (bits & (1 << row)) != 0;
                 ssd1306_draw_pixel(x + i * SSD1306_CHAR_WIDTH + col, y + row, on);
