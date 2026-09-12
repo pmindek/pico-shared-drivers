@@ -145,28 +145,30 @@ typedef struct {
 // regular 5x8, so adjacent box characters form continuous lines instead of
 // a dotted one with a 1px gap between every character. font5x7.h itself
 // stays untouched (a byte-verified public-domain source) - these are
-// additional patterns derived from its existing 0xC9/0xBB/0xC8/0xBC/0xCD/0xBA
-// glyphs (verified by rendering each as an ASCII grid, not just read off
-// raw bytes), extending each one's own trailing column/row into the gap
-// exactly where that glyph already reaches its own right/bottom edge - not
-// a blanket "extend everything" rule, since e.g. V's gap column must stay
-// blank (nothing should bleed into the cell after a lone vertical bar).
+// separate, purpose-built glyphs, not derived from its existing
+// 0xC9/0xBB/0xC8/0xBC/0xCD/0xBA entries (an earlier version tried extending
+// those, but they have their own internal asymmetric notches that made
+// that approach keep reproducing gaps/stray pixels).
 //
-// Also patches a 1px notch present in font5x7's original corner glyphs
-// themselves: of each corner's two double-line vertical strokes, only the
-// one nearer the actual corner tip is unbroken - the other one has a gap
-// exactly at the row the glyph turns from horizontal to vertical (e.g.
-// top-left: column 2, the near stroke, runs solid; column 4, the far one,
-// skips the row right after the horizontal top). Both strokes are made
-// solid here so the corner reads as a clean double line, not one column
-// short a pixel.
+// Built instead from two simple rules, verified by rendering a full
+// simulated box (corner+H+H+H+corner, and V stacked on blank on V), not
+// just individual glyphs in isolation:
+//   - a solid double horizontal line at rows 2 and 4 (matching H exactly),
+//     spanning columns 2 through 5 for left corners (5 = the gap column, so
+//     it continues seamlessly into a following H) or 0 through 4 for right
+//     corners (nothing follows those here, so no gap-column fill)
+//   - a solid double vertical line at columns 2 and 4, spanning rows 2-8
+//     for top corners (continues down into a V on the next line) or rows
+//     0-4 for bottom corners (receives a V from the line above)
+// The two rules' pixels simply overlap where they cross - no separate
+// corner-junction case needed.
 static const box_glyph_t kBoxGlyphs[] = {
     {0xCD, {0x014, 0x014, 0x014, 0x014, 0x014, 0x014}}, // horizontal
     {0xBA, {0x000, 0x000, 0x1FF, 0x000, 0x1FF, 0x000}}, // vertical
-    {0xC9, {0x000, 0x000, 0x1FC, 0x004, 0x1FC, 0x004}}, // top-left
-    {0xBB, {0x014, 0x014, 0x1FC, 0x004, 0x1FC, 0x000}}, // top-right
-    {0xC8, {0x000, 0x000, 0x01F, 0x010, 0x01F, 0x010}}, // bottom-left
-    {0xBC, {0x014, 0x014, 0x01F, 0x010, 0x01F, 0x000}}, // bottom-right
+    {0xC9, {0x000, 0x000, 0x1FC, 0x014, 0x1FC, 0x014}}, // top-left
+    {0xBB, {0x014, 0x014, 0x1FC, 0x014, 0x1FC, 0x000}}, // top-right
+    {0xC8, {0x000, 0x000, 0x01F, 0x014, 0x01F, 0x014}}, // bottom-left
+    {0xBC, {0x014, 0x014, 0x01F, 0x014, 0x01F, 0x000}}, // bottom-right
 };
 
 static const uint16_t *find_box_glyph(uint8_t code) {
