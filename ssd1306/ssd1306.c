@@ -151,13 +151,22 @@ typedef struct {
 // exactly where that glyph already reaches its own right/bottom edge - not
 // a blanket "extend everything" rule, since e.g. V's gap column must stay
 // blank (nothing should bleed into the cell after a lone vertical bar).
+//
+// Also patches a 1px notch present in font5x7's original corner glyphs
+// themselves: of each corner's two double-line vertical strokes, only the
+// one nearer the actual corner tip is unbroken - the other one has a gap
+// exactly at the row the glyph turns from horizontal to vertical (e.g.
+// top-left: column 2, the near stroke, runs solid; column 4, the far one,
+// skips the row right after the horizontal top). Both strokes are made
+// solid here so the corner reads as a clean double line, not one column
+// short a pixel.
 static const box_glyph_t kBoxGlyphs[] = {
     {0xCD, {0x014, 0x014, 0x014, 0x014, 0x014, 0x014}}, // horizontal
     {0xBA, {0x000, 0x000, 0x1FF, 0x000, 0x1FF, 0x000}}, // vertical
-    {0xC9, {0x000, 0x000, 0x1FC, 0x004, 0x1F4, 0x004}}, // top-left
-    {0xBB, {0x014, 0x014, 0x1F4, 0x004, 0x1FC, 0x000}}, // top-right
-    {0xC8, {0x000, 0x000, 0x01F, 0x010, 0x017, 0x010}}, // bottom-left
-    {0xBC, {0x014, 0x014, 0x017, 0x010, 0x01F, 0x000}}, // bottom-right
+    {0xC9, {0x000, 0x000, 0x1FC, 0x004, 0x1FC, 0x004}}, // top-left
+    {0xBB, {0x014, 0x014, 0x1FC, 0x004, 0x1FC, 0x000}}, // top-right
+    {0xC8, {0x000, 0x000, 0x01F, 0x010, 0x01F, 0x010}}, // bottom-left
+    {0xBC, {0x014, 0x014, 0x01F, 0x010, 0x01F, 0x000}}, // bottom-right
 };
 
 static const uint16_t *find_box_glyph(uint8_t code) {
