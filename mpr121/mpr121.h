@@ -17,14 +17,18 @@ extern "C" {
 //
 // This driver does not call i2c_init() itself, and does not set up SDA/
 // SCL's GPIO function or pull-ups - the caller must have already done
-// that for whichever i2c instance is passed in. On RP2040/RP2350, one
-// i2c instance's SDA/SCL signals can be muxed onto more than one physical
-// GPIO pin pair at once (each instance has a whole set of candidate
-// pins, not just one), so it's entirely normal for the MPR121 to share
-// an already-initialized i2c bus with another device on different
-// physical pins - in which case only this device's own two pins need
-// gpio_set_function(..., GPIO_FUNC_I2C) + gpio_pull_up() calls, not a
-// second i2c_init().
+// that for whichever i2c instance is passed in, typically because the
+// MPR121 is sharing a bus another device already brought up (e.g. an
+// IMU). Share it on that device's *own* SDA/SCL pins, not a second GPIO
+// pair mapped to the same i2c instance - each RP2040/RP2350 i2c instance
+// does have several candidate GPIO pairs it can be routed to, but
+// configuring more than one pair for the same instance at once does not
+// reliably make them behave as one wired-together bus in practice
+// (observed on real hardware: the second pair configured can take over
+// as the instance's actual input source, breaking whatever was already
+// working on the first pair, even with nothing else wrong). If two
+// devices need to share one i2c instance, wire them to the exact same
+// two physical pins/nets.
 
 #define MPR121_NUM_ELECTRODES 12
 
