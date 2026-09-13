@@ -91,6 +91,28 @@ bool mpr121_electrode_touched(mpr121_t *dev, int electrode);
 // defaults use a 2:1 ratio (12/6) as a reasonable starting point.
 void mpr121_set_thresholds(mpr121_t *dev, uint8_t touch_threshold, uint8_t release_threshold);
 
+// Root-cause diagnostic, not something normal operation needs: reads back
+// the chip's own live "filtered data" (its current, post-filter reading
+// of each electrode) and "baseline" (the value it currently treats as
+// the neutral, untouched reference - see the datasheet's MHDF/NHDF/NCLF/
+// FDLF "Falling" filter registers, which is what continuously adjusts
+// this while NOT registering a touch, to compensate for slow legitimate
+// drift like temperature). filtered[]/baseline[] must each have room for
+// MPR121_NUM_ELECTRODES entries; baseline[] is the raw register value -
+// multiply by 4 (<<2) to compare directly against filtered[], which is
+// the actual 10-bit reading.
+//
+// A touch is detected when filtered[e] drops more than the electrode's
+// touch threshold below (baseline[e] << 2). If filtered[e] and
+// (baseline[e] << 2) are sitting close together for an electrode that's
+// definitely not being touched, that electrode's baseline has drifted to
+// track the live signal (e.g. an unshielded/breadboard capacitive setup
+// absorbing noise as if it were ambient drift) - no future touch can
+// produce enough delta to cross the threshold until the baseline is
+// forced to reconverge (mpr121_init()'s SOFTRESET does this). Returns
+// false on an i2c error, same convention as mpr121_update().
+bool mpr121_read_diagnostics(mpr121_t *dev, uint16_t *filtered, uint8_t *baseline);
+
 #ifdef __cplusplus
 }
 #endif

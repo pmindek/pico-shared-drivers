@@ -6,6 +6,9 @@
 #define MPR121_REG_TOUCHSTATUS_L 0x00
 #define MPR121_REG_TOUCHSTATUS_H 0x01
 
+#define MPR121_REG_FILTERED_DATA_0 0x04 // + 2*electrode, 2 bytes LE per electrode (10-bit value)
+#define MPR121_REG_BASELINE_0 0x1E      // + electrode, 1 byte per electrode - actual 10-bit baseline is this << 2
+
 #define MPR121_REG_MHDR 0x2B
 #define MPR121_REG_NHDR 0x2C
 #define MPR121_REG_NCLR 0x2D
@@ -150,4 +153,14 @@ uint16_t mpr121_touched(mpr121_t *dev) {
 bool mpr121_electrode_touched(mpr121_t *dev, int electrode) {
     if (electrode < 0 || electrode >= MPR121_NUM_ELECTRODES) return false;
     return (dev->touch_state & (1u << electrode)) != 0;
+}
+
+bool mpr121_read_diagnostics(mpr121_t *dev, uint16_t *filtered, uint8_t *baseline) {
+    uint8_t filtered_raw[2 * MPR121_NUM_ELECTRODES];
+    if (!read_regs(dev, MPR121_REG_FILTERED_DATA_0, filtered_raw, sizeof(filtered_raw))) return false;
+    if (!read_regs(dev, MPR121_REG_BASELINE_0, baseline, MPR121_NUM_ELECTRODES)) return false;
+    for (int e = 0; e < MPR121_NUM_ELECTRODES; e++) {
+        filtered[e] = (uint16_t)filtered_raw[2 * e] | ((uint16_t)(filtered_raw[2 * e + 1] & 0x03) << 8);
+    }
+    return true;
 }
