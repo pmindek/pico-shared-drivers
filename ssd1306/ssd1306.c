@@ -6,6 +6,7 @@
 #include "micro_4x7.h"
 #include "big_10x12.h"
 #include "cp437.h"
+#include "main_menu_37x27.h"
 #include <string.h>
 #include <stdlib.h>
 
@@ -248,6 +249,15 @@ const ssd1306_font_t ssd1306_font_cp437 = {
     .glyphs = kFontCp437,
     .first_code = 0,
     .glyph_count = 256,
+};
+
+const ssd1306_font_t ssd1306_font_main_menu = {
+    .glyph_width = 37,
+    .glyph_height = 27,
+    .glyphs = kFontMainMenu37x27,
+    .first_code = 32,
+    .glyph_count = 3,
+    .ui_only = true,
 };
 
 void ssd1306_draw_text(int x, int y, const char *text, const ssd1306_font_t *font, int spacing_px) {

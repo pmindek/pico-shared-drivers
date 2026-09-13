@@ -25,12 +25,21 @@ extern "C" {
 // ssd1306_console_set_char_spacing()/set_line_spacing() for the console's
 // equivalent. Any number of fonts of any size can exist; nothing here is
 // tied to one particular font's dimensions.
+//
+// ui_only is purely informational - the driver itself never looks at it,
+// it's a signal to any *screen* that enumerates/showcases fonts (see
+// gyros' screen_fonts.cpp) that this one is system UI chrome (icons,
+// menu glyphs, ...) rather than a general-purpose text font, and so
+// doesn't belong in a general font listing. Defaults to false (a normal,
+// listable font) for every existing font, since omitted designated
+// initializer fields are zero-initialized.
 typedef struct {
     uint8_t glyph_width;
     uint8_t glyph_height;
     const uint8_t *glyphs;
     uint8_t first_code;
     uint16_t glyph_count;
+    bool ui_only;
 } ssd1306_font_t;
 
 // "Adafruit" - Adafruit_GFX's own default font ("glcdfont"), 5x8 glyphs
@@ -62,6 +71,12 @@ extern const ssd1306_font_t ssd1306_font_big;
 // that just shares CP437's code-page layout; kept around for its own
 // sake, not superseded by this one.
 extern const ssd1306_font_t ssd1306_font_cp437;
+
+// "Main menu" - 37x27, ui_only (see ssd1306_font_t) - 3 glyphs (ASCII
+// 32-34), each one a system UI icon/menu glyph rather than a printable
+// character; codepoints are just slots to draw them through
+// ssd1306_draw_text() like any other font, not meant to spell anything.
+extern const ssd1306_font_t ssd1306_font_main_menu;
 
 // An off-screen drawing target: a 1bpp paged framebuffer just like the
 // display's own, but any width/height - see ssd1306_set_target(). buf must
