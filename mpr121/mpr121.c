@@ -83,7 +83,16 @@ bool mpr121_init(mpr121_t *dev, i2c_inst_t *i2c, uint8_t addr, int irq_pin) {
         write_reg(dev, MPR121_REG_TOUCHTH_0 + 2 * e + 1, MPR121_DEFAULT_RELEASE_THRESHOLD);
     }
 
-    write_reg(dev, MPR121_REG_DEBOUNCE, 0x00);
+    // Debounce: require 2 consecutive consistent samples before a
+    // touch/release actually registers (bits 0-2 = touch debounce, bits
+    // 4-6 = release debounce - 0x22 sets both to 2). Was 0x00 (no
+    // debounce at all) - fine for a real touch (which is a sustained
+    // contact, easily surviving a couple extra samples of confirmation),
+    // but on unshielded breadboard wiring a single noisy ADC sample is
+    // enough to register a phantom touch/release with no debounce at
+    // all - observed as electrodes firing on their own with nothing
+    // touching them.
+    write_reg(dev, MPR121_REG_DEBOUNCE, 0x22);
     write_reg(dev, MPR121_REG_CONFIG1, 0x10); // 16uA electrode charge current
     write_reg(dev, MPR121_REG_CONFIG2, 0x20); // 0.5us encoding, 1ms sample period
 
