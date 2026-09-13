@@ -11,7 +11,7 @@
 // character-grid size (ssd1306_console_cols()/rows()) and every pixel
 // position this module computes are derived from whatever's currently set,
 // not a fixed font/cell size. Defaults match this module's original,
-// long-standing look: ssd1306_font_5x7, 1px character spacing, 1px line
+// long-standing look: ssd1306_font_adafruit, 1px character spacing, 1px line
 // spacing.
 //
 // ssd1306_console_write()/write_ln() recognize '\n' (next line), '\r'

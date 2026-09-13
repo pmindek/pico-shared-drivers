@@ -11,16 +11,15 @@ in each project points at `lib/shared/<driver>/...`.
 - `ssd1306/` - SSD1306 128x64 OLED driver (hardware I2C + a bit-banged
   software-I2C variant for a second display on different pins), plus
   `ssd1306_draw_text()` (any font, see `ssd1306_font_t`) and several bitmap
-  fonts: `ssd1306_font_5x7` ("Adafruit" - Adafruit_GFX's own default
-  font; follows CP437's code-page layout but isn't a real CP437 bitmap
-  font), `ssd1306_font_7x11` ("chonk"),
-  `ssd1306_font_7x11_narrow`, `ssd1306_font_6x7` ("mini"),
-  `ssd1306_font_4x7` ("micro"), `ssd1306_font_10x12` ("big"),
-  `ssd1306_font_cp437` (the full CP437 at its authentic VGA text-mode
-  9x16 size - see `generate_cp437.py`, a one-shot generator separate
-  from the PNG pipeline below, since this one's sourced from the
-  classic VGA ROM font's byte data, not an image). Font source images
-  live in
+  fonts: `ssd1306_font_adafruit` (5x8 - Adafruit_GFX's own default font;
+  follows CP437's code-page layout but isn't a real CP437 bitmap font),
+  `ssd1306_font_chonk` (7x11), `ssd1306_font_narrow` (7x11, thinner
+  strokes than chonk), `ssd1306_font_mini` (6x7), `ssd1306_font_micro`
+  (4x7), `ssd1306_font_big` (10x12), `ssd1306_font_cp437` (the full CP437
+  at its authentic VGA text-mode 9x16 size - see `generate_cp437.py`, a
+  one-shot generator separate from the PNG pipeline below, since this
+  one's sourced from the classic VGA ROM font's byte data, not an image).
+  Font source images live in
   `ssd1306/fonts/<name>_<W>x<H>.png` (a horizontal strip of WxH glyph cells
   starting at ASCII 32); the `.h` glyph data next to them is generated from
   those images via `ssd1306/generate_fonts.py`, not hand-written - run it

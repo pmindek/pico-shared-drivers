@@ -194,7 +194,7 @@ void ssd1306_blit_canvas(const ssd1306_canvas_t *src, int src_x, int src_y, int 
     }
 }
 
-const ssd1306_font_t ssd1306_font_5x7 = {
+const ssd1306_font_t ssd1306_font_adafruit = {
     .glyph_width = 5,
     .glyph_height = 8,
     .glyphs = kFontAdafruit5x7,
@@ -202,7 +202,7 @@ const ssd1306_font_t ssd1306_font_5x7 = {
     .glyph_count = 256,
 };
 
-const ssd1306_font_t ssd1306_font_7x11 = {
+const ssd1306_font_t ssd1306_font_chonk = {
     .glyph_width = 7,
     .glyph_height = 11,
     .glyphs = kFontChonk7x11,
@@ -210,7 +210,7 @@ const ssd1306_font_t ssd1306_font_7x11 = {
     .glyph_count = 95,
 };
 
-const ssd1306_font_t ssd1306_font_6x7 = {
+const ssd1306_font_t ssd1306_font_mini = {
     .glyph_width = 6,
     .glyph_height = 7,
     .glyphs = kFontMini6x7,
@@ -218,7 +218,7 @@ const ssd1306_font_t ssd1306_font_6x7 = {
     .glyph_count = 96,
 };
 
-const ssd1306_font_t ssd1306_font_7x11_narrow = {
+const ssd1306_font_t ssd1306_font_narrow = {
     .glyph_width = 7,
     .glyph_height = 11,
     .glyphs = kFontNarrow7x11,
@@ -226,7 +226,7 @@ const ssd1306_font_t ssd1306_font_7x11_narrow = {
     .glyph_count = 95,
 };
 
-const ssd1306_font_t ssd1306_font_4x7 = {
+const ssd1306_font_t ssd1306_font_micro = {
     .glyph_width = 4,
     .glyph_height = 7,
     .glyphs = kFontMicro4x7,
@@ -234,7 +234,7 @@ const ssd1306_font_t ssd1306_font_4x7 = {
     .glyph_count = 95,
 };
 
-const ssd1306_font_t ssd1306_font_10x12 = {
+const ssd1306_font_t ssd1306_font_big = {
     .glyph_width = 10,
     .glyph_height = 12,
     .glyphs = kFontBig10x12,

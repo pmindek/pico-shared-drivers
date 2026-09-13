@@ -5,7 +5,7 @@ static int s_cursor_x = 0;
 static int s_cursor_y = 0;
 static bool s_auto_newline = true;
 
-static const ssd1306_font_t *s_font = &ssd1306_font_5x7;
+static const ssd1306_font_t *s_font = &ssd1306_font_adafruit;
 static int s_char_spacing = 1;
 static int s_line_spacing = 1;
 

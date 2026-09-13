@@ -38,29 +38,29 @@ typedef struct {
 // descenders on a few), covering all 256 codes. Follows CP437's code-page
 // layout but isn't a real CP437 bitmap font - see ssd1306_font_cp437 for
 // that.
-extern const ssd1306_font_t ssd1306_font_5x7;
+extern const ssd1306_font_t ssd1306_font_adafruit;
 
 // "Chonk" - 7x11 glyphs, ASCII 32 (space) through 126 ('~').
-extern const ssd1306_font_t ssd1306_font_7x11;
+extern const ssd1306_font_t ssd1306_font_chonk;
 
 // "Mini" - 6x7 glyphs, ASCII 32 (space) through 127 (DEL).
-extern const ssd1306_font_t ssd1306_font_6x7;
+extern const ssd1306_font_t ssd1306_font_mini;
 
-// "Narrow" - 7x11 glyphs (thinner strokes than ssd1306_font_7x11), ASCII 32
-// (space) through 126 ('~').
-extern const ssd1306_font_t ssd1306_font_7x11_narrow;
+// "Narrow" - 7x11 glyphs (thinner strokes than ssd1306_font_chonk), ASCII
+// 32 (space) through 126 ('~').
+extern const ssd1306_font_t ssd1306_font_narrow;
 
 // "Micro" - 4x7 glyphs, ASCII 32 (space) through 126 ('~').
-extern const ssd1306_font_t ssd1306_font_4x7;
+extern const ssd1306_font_t ssd1306_font_micro;
 
 // "Big" - 10x12 glyphs, ASCII 32 (space) through 126 ('~').
-extern const ssd1306_font_t ssd1306_font_10x12;
+extern const ssd1306_font_t ssd1306_font_big;
 
 // "CP437" - the full IBM PC/VGA codepage 437 at its authentic 9x16
 // text-mode size (see generate_cp437.py), covering all 256 codes - not to
-// be confused with ssd1306_font_5x7 ("Adafruit"), a different, much
-// smaller font that just shares CP437's code-page layout; kept around for
-// its own sake, not superseded by this one.
+// be confused with ssd1306_font_adafruit, a different, much smaller font
+// that just shares CP437's code-page layout; kept around for its own
+// sake, not superseded by this one.
 extern const ssd1306_font_t ssd1306_font_cp437;
 
 // An off-screen drawing target: a 1bpp paged framebuffer just like the
@@ -127,7 +127,7 @@ void ssd1306_blit_canvas(const ssd1306_canvas_t *src, int src_x, int src_y, int 
 // Draws text with its top-left corner at (x, y), using `font`, advancing
 // (font->glyph_width + spacing_px) pixels per character - spacing_px is
 // extra blank columns of gap between characters (0 for none; a font whose
-// own glyph cells already include their spacing, like ssd1306_font_7x11,
+// own glyph cells already include their spacing, like ssd1306_font_chonk,
 // wants 0 here). Characters that run off the right/bottom edge are
 // clipped, not wrapped. Always repaints the full advance width and glyph
 // height (on AND off pixels, including the spacing gap) so redrawing over
