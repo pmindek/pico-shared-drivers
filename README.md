@@ -45,6 +45,12 @@ in each project points at `lib/shared/<driver>/...`.
 - `button/` - a single debounced momentary push button (polled), same
   debounce logic as the encoder driver's SW pin, split out standalone for
   buttons that aren't part of an encoder.
+- `mpr121/` - MPR121 12-key capacitive touch sensor over i2c (polled, not
+  interrupt-driven - the IRQ pin, if wired up, is only used internally to
+  skip an i2c read when there's nothing new). Doesn't call `i2c_init()`
+  itself; expects an already-initialized i2c instance, since that
+  instance's SDA/SCL can be muxed onto more than one physical pin pair on
+  RP2040/RP2350 - see `mpr121.h`'s own comment.
 
 More drivers belong here too - add a new subdirectory per driver rather
 than growing one grab-bag file.
