@@ -72,6 +72,20 @@ uint16_t mpr121_touched(mpr121_t *dev);
 // false outside that range).
 bool mpr121_electrode_touched(mpr121_t *dev, int electrode);
 
+// Live-adjusts every electrode's touch/release thresholds (mpr121_init()
+// sets both to a reasonable manufacturer-recommended default - see
+// MPR121_DEFAULT_TOUCH_THRESHOLD/RELEASE_THRESHOLD in mpr121.c - this
+// overrides that). Unlike the filter/config registers mpr121_init() sets
+// up once, the datasheet allows the threshold registers to be written at
+// any time, including while the chip is already running in normal
+// operation - no re-init needed, safe to call from a live control (e.g. an
+// encoder) as often as you like. Lower thresholds = more sensitive
+// (registers touch/release sooner, but more prone to false triggers from
+// noise); release_threshold should stay below touch_threshold for
+// hysteresis (avoids chatter right at the boundary) - the driver's own
+// defaults use a 2:1 ratio (12/6) as a reasonable starting point.
+void mpr121_set_thresholds(mpr121_t *dev, uint8_t touch_threshold, uint8_t release_threshold);
+
 #ifdef __cplusplus
 }
 #endif

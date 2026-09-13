@@ -44,6 +44,13 @@ static bool read_regs(mpr121_t *dev, uint8_t reg, uint8_t *data, size_t len) {
     return i2c_read_timeout_us(dev->i2c, dev->addr, data, (size_t)len, false, MPR121_I2C_TIMEOUT_US) == (int)len;
 }
 
+void mpr121_set_thresholds(mpr121_t *dev, uint8_t touch_threshold, uint8_t release_threshold) {
+    for (int e = 0; e < MPR121_NUM_ELECTRODES; e++) {
+        write_reg(dev, MPR121_REG_TOUCHTH_0 + 2 * e, touch_threshold);
+        write_reg(dev, MPR121_REG_TOUCHTH_0 + 2 * e + 1, release_threshold);
+    }
+}
+
 bool mpr121_init(mpr121_t *dev, i2c_inst_t *i2c, uint8_t addr, int irq_pin) {
     dev->i2c = i2c;
     dev->addr = addr;
@@ -78,10 +85,7 @@ bool mpr121_init(mpr121_t *dev, i2c_inst_t *i2c, uint8_t addr, int irq_pin) {
     write_reg(dev, MPR121_REG_NCLT, 0x00);
     write_reg(dev, MPR121_REG_FDLT, 0x00);
 
-    for (int e = 0; e < MPR121_NUM_ELECTRODES; e++) {
-        write_reg(dev, MPR121_REG_TOUCHTH_0 + 2 * e, MPR121_DEFAULT_TOUCH_THRESHOLD);
-        write_reg(dev, MPR121_REG_TOUCHTH_0 + 2 * e + 1, MPR121_DEFAULT_RELEASE_THRESHOLD);
-    }
+    mpr121_set_thresholds(dev, MPR121_DEFAULT_TOUCH_THRESHOLD, MPR121_DEFAULT_RELEASE_THRESHOLD);
 
     // Debounce: require 2 consecutive consistent samples before a
     // touch/release actually registers (bits 0-2 = touch debounce, bits
