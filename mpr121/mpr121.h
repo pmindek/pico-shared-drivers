@@ -61,7 +61,12 @@ bool mpr121_init(mpr121_t *dev, i2c_inst_t *i2c, uint8_t addr, int irq_pin);
 // updates the cached state returned by mpr121_touched()/
 // mpr121_electrode_touched(). A transient i2c error leaves the last-known
 // state as-is rather than clearing it. Call once per main-loop iteration.
-void mpr121_update(mpr121_t *dev);
+//
+// Returns false only if a read was actually attempted and failed (an i2c
+// error, not just "nothing new to read") - lets a caller notice a string
+// of failures and treat it as a sign the underlying i2c bus itself needs
+// recovering, not just this one read retried next time.
+bool mpr121_update(mpr121_t *dev);
 
 // Bit i set = electrode i was touched as of the last mpr121_update() call
 // - a plain cached read with no side effects, safe to call as often as

@@ -63,29 +63,50 @@ bool mpr121_init(mpr121_t *dev, i2c_inst_t *i2c, uint8_t addr, int irq_pin) {
         gpio_pull_up(irq_pin);
     }
 
+    // Every write below is now checked (`ok &=`) and the whole function
+    // fails if any of them didn't ACK, instead of only checking the first
+    // (SOFTRESET), the last (ECR run-mode) and the final readback. That
+    // used to mean a single dropped write in the middle - e.g. a brief
+    // i2c glitch right as the chip's power rail was still settling at
+    // boot - could leave the baseline-filter config half-applied (chip's
+    // power-on-reset default in that register instead of the value meant
+    // to land there) while mpr121_init() still reported success, because
+    // the checked steps at the very start and very end both happened to
+    // go through fine. Observed on real hardware as "found (OK) but
+    // never registers a single touch, at any sensitivity" - not a wiring
+    // or threshold problem, a badly-configured-but-technically-alive
+    // chip that only a fresh, fully successful init sequence fixes (the
+    // retry loop in gyros' hardware.cpp's touch_init() is what actually
+    // gets a fully-successful sequence, this is just what lets it tell
+    // a partial failure apart from a real success).
+    bool ok = true;
+
     // Soft reset, then stop mode (ECR = 0) before (re)configuring - the
     // datasheet requires the chip to be in stop mode while the filter/
     // threshold/config registers below are written.
-    if (!write_reg(dev, MPR121_REG_SOFTRESET, 0x63)) return false;
+    ok &= write_reg(dev, MPR121_REG_SOFTRESET, 0x63);
     sleep_ms(1);
-    if (!write_reg(dev, MPR121_REG_ECR, 0x00)) return false;
+    ok &= write_reg(dev, MPR121_REG_ECR, 0x00);
 
     // Baseline filtering - the manufacturer's own recommended
     // configuration (every other MPR121 driver out there uses these same
     // values verbatim; there's no project-specific "why" beyond that).
-    write_reg(dev, MPR121_REG_MHDR, 0x01);
-    write_reg(dev, MPR121_REG_NHDR, 0x01);
-    write_reg(dev, MPR121_REG_NCLR, 0x0E);
-    write_reg(dev, MPR121_REG_FDLR, 0x00);
-    write_reg(dev, MPR121_REG_MHDF, 0x01);
-    write_reg(dev, MPR121_REG_NHDF, 0x05);
-    write_reg(dev, MPR121_REG_NCLF, 0x01);
-    write_reg(dev, MPR121_REG_FDLF, 0x00);
-    write_reg(dev, MPR121_REG_NHDT, 0x00);
-    write_reg(dev, MPR121_REG_NCLT, 0x00);
-    write_reg(dev, MPR121_REG_FDLT, 0x00);
+    ok &= write_reg(dev, MPR121_REG_MHDR, 0x01);
+    ok &= write_reg(dev, MPR121_REG_NHDR, 0x01);
+    ok &= write_reg(dev, MPR121_REG_NCLR, 0x0E);
+    ok &= write_reg(dev, MPR121_REG_FDLR, 0x00);
+    ok &= write_reg(dev, MPR121_REG_MHDF, 0x01);
+    ok &= write_reg(dev, MPR121_REG_NHDF, 0x05);
+    ok &= write_reg(dev, MPR121_REG_NCLF, 0x01);
+    ok &= write_reg(dev, MPR121_REG_FDLF, 0x00);
+    ok &= write_reg(dev, MPR121_REG_NHDT, 0x00);
+    ok &= write_reg(dev, MPR121_REG_NCLT, 0x00);
+    ok &= write_reg(dev, MPR121_REG_FDLT, 0x00);
 
-    mpr121_set_thresholds(dev, MPR121_DEFAULT_TOUCH_THRESHOLD, MPR121_DEFAULT_RELEASE_THRESHOLD);
+    for (int e = 0; e < MPR121_NUM_ELECTRODES; e++) {
+        ok &= write_reg(dev, MPR121_REG_TOUCHTH_0 + 2 * e, MPR121_DEFAULT_TOUCH_THRESHOLD);
+        ok &= write_reg(dev, MPR121_REG_TOUCHTH_0 + 2 * e + 1, MPR121_DEFAULT_RELEASE_THRESHOLD);
+    }
 
     // Debounce: require 2 consecutive consistent samples before a
     // touch/release actually registers (bits 0-2 = touch debounce, bits
@@ -96,12 +117,14 @@ bool mpr121_init(mpr121_t *dev, i2c_inst_t *i2c, uint8_t addr, int irq_pin) {
     // enough to register a phantom touch/release with no debounce at
     // all - observed as electrodes firing on their own with nothing
     // touching them.
-    write_reg(dev, MPR121_REG_DEBOUNCE, 0x22);
-    write_reg(dev, MPR121_REG_CONFIG1, 0x10); // 16uA electrode charge current
-    write_reg(dev, MPR121_REG_CONFIG2, 0x20); // 0.5us encoding, 1ms sample period
+    ok &= write_reg(dev, MPR121_REG_DEBOUNCE, 0x22);
+    ok &= write_reg(dev, MPR121_REG_CONFIG1, 0x10); // 16uA electrode charge current
+    ok &= write_reg(dev, MPR121_REG_CONFIG2, 0x20); // 0.5us encoding, 1ms sample period
 
     // Run mode: baseline tracking enabled, all 12 electrodes active.
-    if (!write_reg(dev, MPR121_REG_ECR, 0x8C)) return false;
+    ok &= write_reg(dev, MPR121_REG_ECR, 0x8C);
+
+    if (!ok) return false;
 
     // Final sanity check: a chip that never ACKed any write above would
     // have already made this false, but a read costs nothing extra and
@@ -111,12 +134,13 @@ bool mpr121_init(mpr121_t *dev, i2c_inst_t *i2c, uint8_t addr, int irq_pin) {
     return read_regs(dev, MPR121_REG_TOUCHSTATUS_L, status, 2);
 }
 
-void mpr121_update(mpr121_t *dev) {
-    if (dev->irq_pin >= 0 && gpio_get(dev->irq_pin)) return; // IRQ not asserted (active-low) - nothing new to read
+bool mpr121_update(mpr121_t *dev) {
+    if (dev->irq_pin >= 0 && gpio_get(dev->irq_pin)) return true; // IRQ not asserted (active-low) - nothing new to read, not a failure
 
     uint8_t status[2];
-    if (!read_regs(dev, MPR121_REG_TOUCHSTATUS_L, status, 2)) return; // transient error - keep the last-known state
+    if (!read_regs(dev, MPR121_REG_TOUCHSTATUS_L, status, 2)) return false; // transient error - keep the last-known state
     dev->touch_state = (uint16_t)status[0] | (uint16_t)((status[1] & 0x0F) << 8);
+    return true;
 }
 
 uint16_t mpr121_touched(mpr121_t *dev) {
