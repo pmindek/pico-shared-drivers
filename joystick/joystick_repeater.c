@@ -28,17 +28,27 @@ static int step_axis(joystick_repeater_t *repeater, uint64_t *due_us, uint64_t n
     if (rate < 0.001f) rate = 0.001f; // guard a pathological (e.g. zero) min_steps_per_sec against a divide-by-zero below
     uint64_t interval_us = (uint64_t)(1000000.0f / rate);
 
-    int direction = axis_value > 0.0f ? 1 : -1;
-
     if (*due_us == 0) {
-        // Just crossed the deadzone - fires the first step immediately
-        // (feels responsive, the same way a keyboard's own key-repeat
-        // fires the first character right away before any delay applies)
-        // and schedules the next one from here.
+        // Just crossed the deadzone - schedule the first step one full
+        // interval from now, same as every step after it. An earlier
+        // version fired this one immediately (felt more responsive, like
+        // a keyboard's own key-repeat firing its first character right
+        // away) but that meant every single 0->nonzero edge granted a
+        // free step with no time requirement at all - harmless for a
+        // deliberate push, but a joystick resting right at the deadzone
+        // boundary can flicker across it from ADC/pot noise alone (the
+        // same kind of noise this project fought with the capacitive
+        // touch sensor), and each flicker was its own free step - fast
+        // enough in a row to send a cursor flying to a corner with
+        // nobody touching the stick. Requiring the full interval to
+        // actually elapse means a single-poll noise blip contributes
+        // nothing: it resets back to *due_us = 0 (see above) before
+        // "now >= *due_us" can ever become true.
         *due_us = now + interval_us;
-        return direction;
+        return 0;
     }
 
+    int direction = axis_value > 0.0f ? 1 : -1;
     int steps = 0;
     while (now >= *due_us) {
         steps += direction;
