@@ -3,31 +3,40 @@
 #include <math.h>
 
 void joystick_repeater_init(joystick_repeater_t *repeater, joystick_t *joystick, float threshold,
-                             float min_steps_per_sec, float max_steps_per_sec, float curve_power) {
+                             float release_threshold, float min_steps_per_sec, float max_steps_per_sec,
+                             float curve_power) {
     repeater->joystick = joystick;
     repeater->threshold = threshold;
+    repeater->release_threshold = release_threshold;
     repeater->min_steps_per_sec = min_steps_per_sec;
     repeater->max_steps_per_sec = max_steps_per_sec;
     repeater->curve_power = curve_power;
     repeater->x_due_us = 0;
     repeater->y_due_us = 0;
+    repeater->x_armed = true;
+    repeater->y_armed = true;
 }
 
 // One axis' worth of the repeat state machine - shared by both X and Y in
-// joystick_repeater_update() below. `due_us` is that axis' own
-// x_due_us/y_due_us field.
-static int step_axis(joystick_repeater_t *repeater, uint64_t *due_us, uint64_t now, float axis_value) {
+// joystick_repeater_update() below. `due_us`/`armed` are that axis' own
+// x_due_us/x_armed (or y_) fields.
+static int step_axis(joystick_repeater_t *repeater, uint64_t *due_us, bool *armed, uint64_t now, float axis_value) {
     float magnitude = fabsf(axis_value);
+
+    // Re-arms once the axis has genuinely withdrawn, independent of
+    // whether it's currently repeating - see the header's own comment on
+    // why this (not just "below threshold") is what actually prevents a
+    // moment of wobble near threshold from granting more than one
+    // instant step.
+    if (magnitude < repeater->release_threshold) *armed = true;
+
     if (magnitude < repeater->threshold) {
-        // Below threshold - not pushed, as far as this is concerned (see
-        // the header's own comment on why `threshold` needs to be a real
-        // margin above the joystick driver's own much smaller internal
-        // deadzone, not just "any nonzero reading" - that was the
-        // earlier bug: ADC/pot noise flickering across a near-zero
-        // deadzone could each grant a free instant step, fast enough in
-        // a row to send a cursor flying with nobody touching the stick).
-        // Resetting to 0 means the next real push starts a fresh cycle,
-        // not mid-interval.
+        // Below threshold - not pushed, as far as repeating goes.
+        // Resetting to 0 means the next push starts a fresh cycle, not
+        // mid-interval - `armed` is separate and NOT reset here, since a
+        // push that dips just under threshold and immediately back over
+        // (without ever reaching release_threshold) must not get another
+        // free instant step.
         *due_us = 0;
         return 0;
     }
@@ -41,13 +50,16 @@ static int step_axis(joystick_repeater_t *repeater, uint64_t *due_us, uint64_t n
     int direction = axis_value > 0.0f ? 1 : -1;
 
     if (*due_us == 0) {
-        // Just crossed threshold - fires immediately (feels responsive,
-        // like a keyboard's own key-repeat firing its first character
-        // right away) and schedules the next one from here. Safe against
-        // noise here specifically because threshold is a deliberate,
-        // large margin - see this function's own comment above.
+        // Just started repeating - schedule the next tick either way,
+        // but only actually fire an instant step if this is a genuine
+        // new push (armed), not just the same wobble re-crossing
+        // threshold.
         *due_us = now + interval_us;
-        return direction;
+        if (*armed) {
+            *armed = false;
+            return direction;
+        }
+        return 0;
     }
 
     int steps = 0;
@@ -63,6 +75,6 @@ void joystick_repeater_update(joystick_repeater_t *repeater, int *dx, int *dy) {
     joystick_read(repeater->joystick, &x, &y);
     uint64_t now = time_us_64();
 
-    *dx = step_axis(repeater, &repeater->x_due_us, now, x);
-    *dy = step_axis(repeater, &repeater->y_due_us, now, y);
+    *dx = step_axis(repeater, &repeater->x_due_us, &repeater->x_armed, now, x);
+    *dy = step_axis(repeater, &repeater->y_due_us, &repeater->y_armed, now, y);
 }
