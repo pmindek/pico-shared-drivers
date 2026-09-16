@@ -51,6 +51,11 @@ in each project points at `lib/shared/<driver>/...`.
   itself; expects an already-initialized i2c instance, since that
   instance's SDA/SCL can be muxed onto more than one physical pin pair on
   RP2040/RP2350 - see `mpr121.h`'s own comment.
+- `joystick/` - analog 2-axis "PS2-style" joystick module (two
+  potentiometers over the RP2040/RP2350's ADC, plus a momentary push
+  button under the stick), polled. Self-calibrates each axis' rest/center
+  reading at init, normalizes both axes to -1.0..+1.0 with a small
+  deadzone around center.
 
 More drivers belong here too - add a new subdirectory per driver rather
 than growing one grab-bag file.
