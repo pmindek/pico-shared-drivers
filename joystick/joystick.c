@@ -1,6 +1,7 @@
 #include "joystick.h"
 #include "hardware/adc.h"
 #include "hardware/gpio.h"
+#include <math.h>
 
 #define JOYSTICK_ADC_GPIO_BASE 26 // GP26=ADC0, GP27=ADC1, GP28=ADC2, GP29=ADC3 on RP2040/RP2350
 
@@ -41,6 +42,17 @@ static float normalize(uint16_t raw, uint16_t center)
     return normalized;
 }
 
+// Sign-preserving power curve - see joystick_set_curve_exponent()'s own
+// comment. Skips powf() entirely at the default exponent (1.0), the
+// overwhelmingly common case, rather than doing (and rounding through) a
+// no-op x^1.0 on every single read.
+static float apply_curve(float normalized, float exponent)
+{
+    if (normalized == 0.0f || exponent == 1.0f) return normalized;
+    float curved = powf(fabsf(normalized), exponent);
+    return normalized < 0.0f ? -curved : curved;
+}
+
 void joystick_init(joystick_t *joystick, uint x_gpio, uint y_gpio, uint sw_pin)
 {
     if (!s_adc_initialized) {
@@ -71,12 +83,14 @@ void joystick_init(joystick_t *joystick, uint x_gpio, uint y_gpio, uint sw_pin)
     }
     joystick->center_x = (uint16_t)(sum_x / JOYSTICK_CALIBRATION_SAMPLES);
     joystick->center_y = (uint16_t)(sum_y / JOYSTICK_CALIBRATION_SAMPLES);
+
+    joystick->curve_exponent = 1.0f;
 }
 
 void joystick_read(joystick_t *joystick, float *x, float *y)
 {
-    *x = normalize(read_raw(joystick->x_adc_input), joystick->center_x);
-    *y = normalize(read_raw(joystick->y_adc_input), joystick->center_y);
+    *x = apply_curve(normalize(read_raw(joystick->x_adc_input), joystick->center_x), joystick->curve_exponent);
+    *y = apply_curve(normalize(read_raw(joystick->y_adc_input), joystick->center_y), joystick->curve_exponent);
 }
 
 bool joystick_button_pressed(joystick_t *joystick)
@@ -91,4 +105,14 @@ bool joystick_button_pressed(joystick_t *joystick)
         triggered = is_pressed;
     }
     return triggered;
+}
+
+void joystick_set_curve_exponent(joystick_t *joystick, float exponent)
+{
+    joystick->curve_exponent = exponent;
+}
+
+float joystick_get_curve_exponent(const joystick_t *joystick)
+{
+    return joystick->curve_exponent;
 }

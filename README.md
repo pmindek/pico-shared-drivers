@@ -55,7 +55,11 @@ in each project points at `lib/shared/<driver>/...`.
   potentiometers over the RP2040/RP2350's ADC, plus a momentary push
   button under the stick), polled. Self-calibrates each axis' rest/center
   reading at init, normalizes both axes to -1.0..+1.0 with a small
-  deadzone around center. Also `joystick_repeater.h` - turns that
+  deadzone around center, then applies a per-instance, sign-preserving
+  response-curve exponent (`joystick_set_curve_exponent()` - 1.0/linear
+  by default) that every future `joystick_read()` (and so every
+  `joystick_repeater_update()` too) reflects immediately, from whichever
+  screen last set it, until changed again. Also `joystick_repeater.h` - turns that
   continuous analog position into discrete, auto-repeating step events
   (e.g. moving a grid/list cursor) at a rate that scales with how far the
   stick is pushed, via a configurable (non-linear) curve - and

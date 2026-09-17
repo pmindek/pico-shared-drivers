@@ -34,6 +34,17 @@ extern "C" {
 // call site or negate the value the caller gets back - same "verify
 // against real hardware, fix at the call site" convention as encoder.h's
 // own CW/CCW direction.
+//
+// A response-curve exponent is then applied to both axes (see
+// joystick_set_curve_exponent()) - sign-preserving, output = sign(x) *
+// |x|^exponent, 1.0 (the default) = linear/no curve. It's part of
+// joystick_t (not separate global state) so a second joystick instance
+// could someday have its own curve, but in practice every screen shares
+// one joystick_t (hardware_get_joystick()), so setting it from any one
+// of them - e.g. a calibration screen - is immediately visible to every
+// other screen's joystick_read()/joystick_repeater_update() calls too,
+// and stays that way until changed again (not reset when switching
+// screens).
 
 typedef struct {
     uint x_adc_input; // 0-3 - adc_select_input()'s argument, derived from x_gpio at init
@@ -43,6 +54,7 @@ typedef struct {
     uint sw_pin;
     bool sw_was_pressed;
     uint64_t sw_last_change_us;
+    float curve_exponent; // see joystick_set_curve_exponent()
 } joystick_t;
 
 // Initializes the ADC (safe to call more than once across multiple
@@ -59,6 +71,16 @@ void joystick_read(joystick_t *joystick, float *x, float *y);
 // True once per physical press of the joystick's own button (on the press
 // edge, debounced), not while held.
 bool joystick_button_pressed(joystick_t *joystick);
+
+// Sets the response-curve exponent joystick_read() applies to both axes
+// from here on - sign(x) * |x|^exponent. 1.0 = linear (joystick_init()'s
+// default); >1.0 = soft near center, sharper near the edges (more
+// precision for small movements); <1.0 = the opposite (more sensitivity
+// for small movements, flatter near the edges). Not clamped here - a
+// pathological exponent (0, negative, huge) is the caller's problem, not
+// this driver's to silently second-guess.
+void joystick_set_curve_exponent(joystick_t *joystick, float exponent);
+float joystick_get_curve_exponent(const joystick_t *joystick);
 
 #ifdef __cplusplus
 }
