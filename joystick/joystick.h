@@ -37,13 +37,18 @@ extern "C" {
 //
 // A response-curve exponent is then applied to both axes (see
 // joystick_set_curve_exponent()) - sign-preserving, output = sign(x) *
-// |x|^exponent, 1.0 (the default) = linear/no curve. It's part of
-// joystick_t (not separate global state) so a second joystick instance
-// could someday have its own curve, but in practice every screen shares
-// one joystick_t (hardware_get_joystick()), so setting it from any one
-// of them - e.g. a calibration screen - is immediately visible to every
-// other screen's joystick_read()/joystick_repeater_update() calls too,
-// and stays that way until changed again (not reset when switching
+// |x|^exponent, 1.0 (the default) = linear/no curve. The curve is applied
+// to the post-deadzone range remapped so 0.0 sits exactly at the deadzone
+// boundary (not the small-but-nonzero raw escape value) - otherwise an
+// exponent < 1 would amplify ordinary noise flickering across that
+// boundary into a large jump, since x^exponent has an unboundedly steep
+// slope near its own x=0 (see joystick.c's normalize_and_curve()). It's
+// part of joystick_t (not separate global state) so a second joystick
+// instance could someday have its own curve, but in practice every screen
+// shares one joystick_t (hardware_get_joystick()), so setting it from any
+// one of them - e.g. a calibration screen - is immediately visible to
+// every other screen's joystick_read()/joystick_repeater_update() calls
+// too, and stays that way until changed again (not reset when switching
 // screens).
 
 typedef struct {

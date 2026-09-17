@@ -25,7 +25,25 @@ static uint16_t read_raw(uint adc_input)
     return adc_read();
 }
 
-static float normalize(uint16_t raw, uint16_t center)
+// Normalizes to -1.0..+1.0 AND applies the response curve in one step -
+// deliberately not two composed functions (a plain normalize() then a
+// separate apply_curve()) because the curve needs to know where the
+// deadzone boundary sits in normalized terms, not just the -1..1 value.
+//
+// Why: right at the deadzone edge, a plain normalize()'s "escaped" value
+// isn't a true 0 - it's already ~JOYSTICK_DEADZONE/range (a couple of
+// percent), since anything smaller is caught by the deadzone check and
+// reported as exactly 0.0 instead. A pure power curve (x^exponent)
+// applied to that small-but-nonzero value amplifies it: exponent < 1 has
+// an unboundedly steep slope right at its own x=0, so ADC/pot noise
+// flickering across the deadzone boundary - normally invisible - turns
+// into a large, visible jump once curved (worse the lower the exponent),
+// even with the stick left completely alone. Fix: remap the post-deadzone
+// range so 0.0 falls exactly ON the deadzone boundary (not a couple
+// percent past it) before curving - now the worst case (noise sitting
+// right at the boundary) remaps to ~0, and 0^exponent is exactly 0 for
+// any exponent, so there's nothing left for the curve to amplify.
+static float normalize_and_curve(uint16_t raw, uint16_t center, float exponent)
 {
     int32_t delta = (int32_t)raw - (int32_t)center;
     if (delta > -JOYSTICK_DEADZONE && delta < JOYSTICK_DEADZONE) return 0.0f;
@@ -36,21 +54,24 @@ static float normalize(uint16_t raw, uint16_t center)
     float range = delta > 0 ? (float)(JOYSTICK_ADC_MAX - center) : (float)center;
     if (range < 1.0f) range = 1.0f; // guard a center pinned at an extreme (shouldn't happen with a real pot)
 
-    float normalized = (float)delta / range;
-    if (normalized > 1.0f) normalized = 1.0f;
-    if (normalized < -1.0f) normalized = -1.0f;
-    return normalized;
-}
+    float magnitude = (float)(delta < 0 ? -delta : delta) / range;
+    if (magnitude > 1.0f) magnitude = 1.0f;
 
-// Sign-preserving power curve - see joystick_set_curve_exponent()'s own
-// comment. Skips powf() entirely at the default exponent (1.0), the
-// overwhelmingly common case, rather than doing (and rounding through) a
-// no-op x^1.0 on every single read.
-static float apply_curve(float normalized, float exponent)
-{
-    if (normalized == 0.0f || exponent == 1.0f) return normalized;
-    float curved = powf(fabsf(normalized), exponent);
-    return normalized < 0.0f ? -curved : curved;
+    float deadzone_edge = (float)JOYSTICK_DEADZONE / range;
+    if (deadzone_edge > 0.99f) deadzone_edge = 0.99f; // guard a pathologically tiny range
+
+    // Rescale magnitude (guaranteed >= deadzone_edge here) so it spans
+    // 0..1 starting exactly at the deadzone boundary, instead of
+    // deadzone_edge..1.
+    float remapped = (magnitude - deadzone_edge) / (1.0f - deadzone_edge);
+    if (remapped < 0.0f) remapped = 0.0f; // guard float rounding right at the boundary
+    if (remapped > 1.0f) remapped = 1.0f;
+
+    // Skips powf() entirely at the default exponent (1.0), the
+    // overwhelmingly common case, rather than doing (and rounding through)
+    // a no-op x^1.0 on every single read.
+    float curved = exponent == 1.0f ? remapped : powf(remapped, exponent);
+    return delta < 0 ? -curved : curved;
 }
 
 void joystick_init(joystick_t *joystick, uint x_gpio, uint y_gpio, uint sw_pin)
@@ -89,8 +110,8 @@ void joystick_init(joystick_t *joystick, uint x_gpio, uint y_gpio, uint sw_pin)
 
 void joystick_read(joystick_t *joystick, float *x, float *y)
 {
-    *x = apply_curve(normalize(read_raw(joystick->x_adc_input), joystick->center_x), joystick->curve_exponent);
-    *y = apply_curve(normalize(read_raw(joystick->y_adc_input), joystick->center_y), joystick->curve_exponent);
+    *x = normalize_and_curve(read_raw(joystick->x_adc_input), joystick->center_x, joystick->curve_exponent);
+    *y = normalize_and_curve(read_raw(joystick->y_adc_input), joystick->center_y, joystick->curve_exponent);
 }
 
 bool joystick_button_pressed(joystick_t *joystick)
