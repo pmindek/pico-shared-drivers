@@ -42,6 +42,21 @@ extern "C" {
 // ssd1306_console_clear() too if you want a clean slate in the new font.
 void ssd1306_console_set_font(const ssd1306_font_t *font);
 
+// Shifts the whole character grid right by `origin_px` pixels: column 0 is
+// then at x = origin_px instead of x = 0, for writing (the cursor returns
+// to it on '\r'/new lines, '\b' won't back up past it), for highlights, and
+// ssd1306_console_cols() (which counts only the width left after it).
+// The strip to its left is never touched by the console, so callers can
+// draw their own content there (e.g. line numbers in a different font) -
+// unlike a run of leading spaces, it needn't be a whole number of cells
+// wide. Default 0. Like the font/spacing setters it's a single live
+// setting: takes effect from the next ssd1306_console_clear()/new line,
+// doesn't move anything already drawn, and must be changed back if a
+// later screen shouldn't inherit it. Changing it while cells are
+// highlighted has the same stray-pixel hazard as
+// ssd1306_console_set_highlight_offset() - dehighlight first.
+void ssd1306_console_set_origin_x(int origin_px);
+
 // Extra blank columns/rows between characters/lines, on top of the current
 // font's own glyph_width/glyph_height (see ssd1306_draw_text()'s
 // spacing_px) - 0 for none. Same "doesn't trigger a redraw" caveat as

@@ -2,6 +2,7 @@
 #include "ssd1306.h"
 
 static int s_cursor_x = 0;
+static int s_origin_x = 0; // see ssd1306_console_set_origin_x()
 static int s_cursor_y = 0;
 static bool s_auto_newline = true;
 
@@ -48,6 +49,11 @@ void ssd1306_console_set_line_spacing(int spacing_px)
     s_line_spacing = spacing_px;
 }
 
+void ssd1306_console_set_origin_x(int origin_px)
+{
+    s_origin_x = origin_px;
+}
+
 void ssd1306_console_set_highlight_offset(int dx, int dy)
 {
     s_highlight_offset_x = dx;
@@ -60,7 +66,7 @@ static inline int clamp_rows(int rows) { return rows > SSD1306_CONSOLE_MAX_ROWS 
 int ssd1306_console_cols(void)
 {
     int cw = cell_width();
-    return clamp_cols((ssd1306_target_width() + cw - 1) / cw);
+    return clamp_cols((ssd1306_target_width() - s_origin_x + cw - 1) / cw);
 }
 
 int ssd1306_console_rows(void)
@@ -109,7 +115,7 @@ void ssd1306_console_clear(void)
 {
     ssd1306_clear();
     if (ssd1306_target_is_display()) ssd1306_show();
-    s_cursor_x = 0;
+    s_cursor_x = s_origin_x;
     s_cursor_y = 0;
     clear_highlight_tracking();
 }
@@ -121,7 +127,7 @@ void ssd1306_console_set_auto_newline(bool enabled)
 
 void ssd1306_console_new_line(void)
 {
-    s_cursor_x = 0;
+    s_cursor_x = s_origin_x;
 
     int ch = cell_height();
     int next_y = s_cursor_y + ch;
@@ -149,11 +155,11 @@ void ssd1306_console_write(const char *text)
             continue;
         }
         if (c == '\r') {
-            s_cursor_x = 0;
+            s_cursor_x = s_origin_x;
             continue;
         }
         if (c == '\b') {
-            if (s_cursor_x >= cw) {
+            if (s_cursor_x >= s_origin_x + cw) {
                 s_cursor_x -= cw;
                 ssd1306_draw_text(s_cursor_x, s_cursor_y, " ", s_font, s_char_spacing); // erase the cell
             }
@@ -187,7 +193,7 @@ static void highlight_cell(int col, int row)
     // offset, same size), or the two XORs don't cancel out and a row of
     // pixels is left stuck inverted.
     int cw = cell_width(), ch = cell_height();
-    ssd1306_invert_rect(col * cw + s_highlight_offset_x, row * ch + s_highlight_offset_y, cw, ch);
+    ssd1306_invert_rect(s_origin_x + col * cw + s_highlight_offset_x, row * ch + s_highlight_offset_y, cw, ch);
 }
 
 void ssd1306_console_highlight_char(int col, int row)
@@ -214,7 +220,7 @@ void ssd1306_console_dehighlight_all(void)
     for (int row = 0; row < SSD1306_CONSOLE_MAX_ROWS; row++) {
         for (int col = 0; col < SSD1306_CONSOLE_MAX_COLS; col++) {
             if (s_highlighted[row][col]) {
-                ssd1306_invert_rect(col * cw + s_highlight_offset_x, row * ch + s_highlight_offset_y, cw, ch);
+                ssd1306_invert_rect(s_origin_x + col * cw + s_highlight_offset_x, row * ch + s_highlight_offset_y, cw, ch);
                 s_highlighted[row][col] = false;
             }
         }
