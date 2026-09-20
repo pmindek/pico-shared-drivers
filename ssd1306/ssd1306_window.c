@@ -14,10 +14,18 @@ void ssd1306_window_init(ssd1306_window_t *win, const char *title, const ssd1306
     win->viewport_height = SSD1306_HEIGHT - win->viewport_y;
     if (win->viewport_height < 0) win->viewport_height = 0;
 
+    win->bottom_margin_px = 0;
     win->content_capacity_px = content_buf_capacity_px;
     win->canvas.width = SSD1306_WINDOW_CONTENT_WIDTH;
     win->canvas.height = content_buf_capacity_px;
     win->canvas.buf = content_buf;
+}
+
+void ssd1306_window_set_bottom_margin(ssd1306_window_t *win, int margin_px) {
+    if (margin_px < 0) margin_px = 0;
+    win->bottom_margin_px = margin_px;
+    win->viewport_height = SSD1306_HEIGHT - win->viewport_y - margin_px;
+    if (win->viewport_height < 0) win->viewport_height = 0;
 }
 
 void ssd1306_window_set_title(ssd1306_window_t *win, const char *title) {
@@ -54,6 +62,10 @@ void ssd1306_window_draw(const ssd1306_window_t *win, int scroll_y) {
     // over) - or even just a previous, longer title - would stay stuck
     // forever, since nothing else ever repaints those particular pixels.
     ssd1306_fill_rect(0, 0, SSD1306_WIDTH, win->viewport_y, false);
+
+    if (win->bottom_margin_px > 0) {
+        ssd1306_fill_rect(0, SSD1306_HEIGHT - win->bottom_margin_px, SSD1306_WIDTH, win->bottom_margin_px, false);
+    }
 
     ssd1306_draw_text(0, 0, win->title, win->title_font, 0);
 

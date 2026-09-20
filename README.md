@@ -36,10 +36,12 @@ in each project points at `lib/shared/<driver>/...`.
   the above to draw into an off-screen `ssd1306_canvas_t` instead of the
   display, and `ssd1306_console.c` (a simple cursor-tracking text console
   built on `ssd1306_draw_text()`) works the same way against either. Built
-  on top of that: `ssd1306_scrollbar.h` (a reusable vertical scrollbar
-  overlay) and `ssd1306_window.h` (a reusable "window" - title, divider,
-  scrollable content area backed by an off-screen canvas, scrollbar drawn
-  automatically when the content doesn't fit).
+  on top of that: `ssd1306_scrollbar.h` (reusable vertical and
+  horizontal scrollbar overlays) and `ssd1306_window.h` (a reusable
+  "window" - title, divider, scrollable content area backed by an
+  off-screen canvas, scrollbar drawn automatically when the content doesn't
+  fit; optionally leaves a strip at the bottom free for the caller's own
+  horizontal scrollbar).
 - `encoder/` - KY-040-style rotary encoder (CLK/DT/SW), interrupt-driven
   rotation + polled/debounced button.
 - `button/` - a single debounced momentary push button (polled), same

@@ -24,3 +24,10 @@
 // (everything already fits - no scrollbar needed).
 void ssd1306_draw_vertical_scrollbar(int x, int y, int height, int total_items, int visible_items,
                                       int first_visible_item);
+
+// Horizontal counterpart of ssd1306_draw_vertical_scrollbar(): same
+// track/thumb look and the same "always clears its own footprint, draws
+// nothing more if everything fits" behavior, rotated - a 3px-tall
+// footprint at rows y..y+2, `width` px wide starting at x.
+void ssd1306_draw_horizontal_scrollbar(int x, int y, int width, int total_items, int visible_items,
+                                        int first_visible_item);

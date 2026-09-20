@@ -29,3 +29,24 @@ void ssd1306_draw_vertical_scrollbar(int x, int y, int height, int total_items, 
 
     ssd1306_fill_rect(x, thumb_y, 3, thumb_h, true);
 }
+
+void ssd1306_draw_horizontal_scrollbar(int x, int y, int width, int total_items, int visible_items,
+                                        int first_visible_item) {
+    if (width <= 0) return;
+
+    ssd1306_fill_rect(x, y, width, 3, false);
+
+    if (total_items <= visible_items) return;
+
+    ssd1306_set_checkerboard_debug(true);
+    ssd1306_fill_rect(x, y + 1, width, 1, true);
+    ssd1306_set_checkerboard_debug(false);
+
+    int thumb_w = (visible_items * width) / total_items;
+    if (thumb_w < 1) thumb_w = 1;
+
+    int thumb_x = x + (first_visible_item * width) / total_items;
+    if (thumb_x + thumb_w > x + width) thumb_x = x + width - thumb_w;
+
+    ssd1306_fill_rect(thumb_x, y, thumb_w, 3, true);
+}

@@ -49,6 +49,7 @@ typedef struct {
     const ssd1306_font_t *title_font; // also determines the divider/content viewport's y position
     int viewport_y;          // where the content viewport starts, in display pixels (set by ssd1306_window_init())
     int viewport_height;     // how many content px are visible on screen at once (set by ssd1306_window_init())
+    int bottom_margin_px;    // rows reserved below the viewport, see ssd1306_window_set_bottom_margin()
     int content_capacity_px; // the max content_buf passed to ssd1306_window_init() can hold
     ssd1306_canvas_t canvas; // canvas.buf = content_buf; canvas.height = current logical content height
 } ssd1306_window_t;
@@ -62,6 +63,17 @@ typedef struct {
 // shorter than that.
 void ssd1306_window_init(ssd1306_window_t *win, const char *title, const ssd1306_font_t *title_font,
                           uint8_t *content_buf, int content_buf_capacity_px);
+
+// Reserves the bottom `margin_px` display rows for something the caller
+// draws itself after ssd1306_window_draw() (e.g. a horizontal scrollbar
+// for content wider than the window - see ssd1306_scrollbar.h): shrinks
+// the content viewport (so viewport_height, the vertical scrollbar and
+// scroll clamping all follow) and makes ssd1306_window_draw() blank the
+// strip at the full display width each time, so the caller's own drawing
+// there never leaves - or inherits - stale pixels. Default 0. Call once
+// after ssd1306_window_init(); scroll math the caller already did against
+// viewport_height must be redone after changing it.
+void ssd1306_window_set_bottom_margin(ssd1306_window_t *win, int margin_px);
 
 // Updates the title text (takes effect on the next ssd1306_window_draw()).
 void ssd1306_window_set_title(ssd1306_window_t *win, const char *title);
