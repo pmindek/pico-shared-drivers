@@ -1,5 +1,9 @@
 #pragma once
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // A generic vertical scrollbar overlay, reusable by any screen that shows
 // a scrollable list/grid taller than fits on screen at once. Pure drawing
 // utility with no state of its own - the caller tracks its own scroll
@@ -31,3 +35,7 @@ void ssd1306_draw_vertical_scrollbar(int x, int y, int height, int total_items, 
 // footprint at rows y..y+2, `width` px wide starting at x.
 void ssd1306_draw_horizontal_scrollbar(int x, int y, int width, int total_items, int visible_items,
                                         int first_visible_item);
+
+#ifdef __cplusplus
+}
+#endif
