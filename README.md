@@ -19,7 +19,8 @@ in each project points at `lib/shared/<driver>/...`.
   at its authentic VGA text-mode 9x16 size - see `generate_cp437.py`, a
   one-shot generator separate from the PNG pipeline below, since this
   one's sourced from the classic VGA ROM font's byte data, not an image),
-  `ssd1306_font_main_menu` (37x27, 3 system UI icon glyphs, not text -
+  `ssd1306_font_main_menu_32` (32x27, 5 icon glyphs: play/stop/sequence/
+  apps/settings - same idea, newer set), `ssd1306_font_main_menu` (37x27, 3 system UI icon glyphs, not text -
   `ui_only` is set on it, a flag any screen enumerating fonts for display
   should check and skip; see `ssd1306_font_t`). Font source images live in
   `ssd1306/fonts/<name>_<W>x<H>.png` (a horizontal strip of WxH glyph cells

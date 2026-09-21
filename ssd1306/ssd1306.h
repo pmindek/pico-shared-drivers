@@ -78,6 +78,13 @@ extern const ssd1306_font_t ssd1306_font_cp437;
 // ssd1306_draw_text() like any other font, not meant to spell anything.
 extern const ssd1306_font_t ssd1306_font_main_menu;
 
+// "Main menu 32" - the newer icon set: 32x27, ui_only, 5 glyphs (ASCII
+// 32-36): PLAY, STOP, SEQUENCE, APPS, SETTINGS. Four of them side by side
+// exactly fill the display's width. Same "slots, not text" convention as
+// ssd1306_font_main_menu, which it doesn't replace (other projects still
+// draw with that one).
+extern const ssd1306_font_t ssd1306_font_main_menu_32;
+
 // An off-screen drawing target: a 1bpp paged framebuffer just like the
 // display's own, but any width/height - see ssd1306_set_target(). buf must
 // be at least SSD1306_CANVAS_BYTES(width, height) bytes, caller-owned (nothing
