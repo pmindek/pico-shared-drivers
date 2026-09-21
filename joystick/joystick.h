@@ -60,6 +60,8 @@ typedef struct {
     bool sw_was_pressed;
     uint64_t sw_last_change_us;
     float curve_exponent; // see joystick_set_curve_exponent()
+    bool suppressed;      // see joystick_suppress_until_centered()
+    float rearm_threshold;
 } joystick_t;
 
 // Initializes the ADC (safe to call more than once across multiple
@@ -85,6 +87,17 @@ bool joystick_button_pressed(joystick_t *joystick);
 // pathological exponent (0, negative, huge) is the caller's problem, not
 // this driver's to silently second-guess.
 void joystick_set_curve_exponent(joystick_t *joystick, float exponent);
+
+// Makes joystick_read() report (0, 0) - centered - until the stick has been
+// brought back below `threshold` (|x| and |y| both under it, judged on the
+// same curved values joystick_read() returns), then reports normally again
+// until the next call. For a UI that has just moved on (e.g. opened a new
+// screen by holding the stick in some direction): without this, whatever
+// the stick is still doing carries over as if it were a fresh input on the
+// new screen (a cursor that immediately runs off, ...). Applies to every
+// consumer at once, since they all read through joystick_read() -
+// joystick_repeater and joystick_hold included. The button isn't affected.
+void joystick_suppress_until_centered(joystick_t *joystick, float threshold);
 float joystick_get_curve_exponent(const joystick_t *joystick);
 
 #ifdef __cplusplus

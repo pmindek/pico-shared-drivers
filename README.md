@@ -65,7 +65,9 @@ in each project points at `lib/shared/<driver>/...`.
   continuous analog position into discrete, auto-repeating step events
   (e.g. moving a grid/list cursor) at a rate that scales with how far the
   stick is pushed, via a configurable (non-linear) curve - and
-  `joystick_hold.h` - detects a sustained directional hold (e.g. holding
+  `joystick_suppress_until_centered()` makes every
+  consumer see a centered stick until it's actually been let go (for
+  after a screen switch), and `joystick_hold.h` - detects a sustained directional hold (e.g. holding
   left for 1s as a "back" gesture), firing once when the hold duration is
   reached. Both use the same two-threshold hysteresis (a deliberate push
   past `threshold` to start, only cancelled by dropping back below a

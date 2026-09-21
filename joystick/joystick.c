@@ -106,12 +106,26 @@ void joystick_init(joystick_t *joystick, uint x_gpio, uint y_gpio, uint sw_pin)
     joystick->center_y = (uint16_t)(sum_y / JOYSTICK_CALIBRATION_SAMPLES);
 
     joystick->curve_exponent = 1.0f;
+    joystick->suppressed = false;
+    joystick->rearm_threshold = 0.0f;
 }
 
 void joystick_read(joystick_t *joystick, float *x, float *y)
 {
-    *x = normalize_and_curve(read_raw(joystick->x_adc_input), joystick->center_x, joystick->curve_exponent);
-    *y = normalize_and_curve(read_raw(joystick->y_adc_input), joystick->center_y, joystick->curve_exponent);
+    float read_x = normalize_and_curve(read_raw(joystick->x_adc_input), joystick->center_x, joystick->curve_exponent);
+    float read_y = normalize_and_curve(read_raw(joystick->y_adc_input), joystick->center_y, joystick->curve_exponent);
+
+    if (joystick->suppressed) {
+        if (fabsf(read_x) < joystick->rearm_threshold && fabsf(read_y) < joystick->rearm_threshold) {
+            joystick->suppressed = false; // back at rest - from this read on, report it as it is
+        } else {
+            read_x = 0.0f;
+            read_y = 0.0f;
+        }
+    }
+
+    *x = read_x;
+    *y = read_y;
 }
 
 bool joystick_button_pressed(joystick_t *joystick)
@@ -126,6 +140,12 @@ bool joystick_button_pressed(joystick_t *joystick)
         triggered = is_pressed;
     }
     return triggered;
+}
+
+void joystick_suppress_until_centered(joystick_t *joystick, float threshold)
+{
+    joystick->rearm_threshold = threshold;
+    joystick->suppressed = true;
 }
 
 void joystick_set_curve_exponent(joystick_t *joystick, float exponent)
