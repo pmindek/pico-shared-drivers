@@ -132,6 +132,24 @@ void ssd1306_fill_circle(int cx, int cy, int r, bool on);
 void ssd1306_fill_rect(int x, int y, int w, int h, bool on);
 void ssd1306_invert_rect(int x, int y, int w, int h);
 
+// A horizontal or vertical line (x0==x1 or y0==y1 - no diagonals) where
+// every other pixel is explicitly left off, forming a genuine dotted
+// pattern based on absolute screen coordinates.
+//
+// This is NOT the same thing as drawing under ssd1306_set_checkerboard_
+// debug(true): that flag only ever SKIPS a pixel, leaving whatever was
+// already there - which looks identical to a dotted line against a plain
+// background (skipping over "off" leaves it "off"), but is invisible on
+// top of something already filled solid, since the skipped pixels just
+// stay solid. This function writes both states explicitly, so it stays
+// visible as a real dotted line even when drawn over a solid fill - e.g.
+// a divider between two adjacent piano keys that are both currently held,
+// which would otherwise merge into one undifferentiated block.
+void ssd1306_draw_dotted_line(int x0, int y0, int x1, int y1);
+
+// A rectangle outline using ssd1306_draw_dotted_line() on all four sides.
+void ssd1306_draw_dotted_rect_outline(int x, int y, int w, int h);
+
 // Redirects every drawing call above (and so ssd1306_draw_text() and the
 // console, both built entirely on top of them) to `canvas` instead of the
 // display's own framebuffer, until the next ssd1306_set_target() call. Pass

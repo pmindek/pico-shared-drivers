@@ -227,6 +227,31 @@ void ssd1306_fill_rect(int x, int y, int w, int h, bool on) {
     }
 }
 
+void ssd1306_draw_dotted_line(int x0, int y0, int x1, int y1) {
+    if (x0 == x1) {
+        int lo = y0 < y1 ? y0 : y1, hi = y0 < y1 ? y1 : y0;
+        for (int y = lo; y <= hi; y++) {
+            ssd1306_draw_pixel(x0, y, ((x0 ^ y) & 1) == 0);
+        }
+    } else if (y0 == y1) {
+        int lo = x0 < x1 ? x0 : x1, hi = x0 < x1 ? x1 : x0;
+        for (int x = lo; x <= hi; x++) {
+            ssd1306_draw_pixel(x, y0, ((x ^ y0) & 1) == 0);
+        }
+    }
+    // Diagonals aren't supported - every caller so far only ever wants
+    // horizontal/vertical dividers (piano key seams, rect outlines), and a
+    // dotted Bresenham line is a different, fiddlier problem (keeping the
+    // dot spacing even along a slope) that nothing has needed yet.
+}
+
+void ssd1306_draw_dotted_rect_outline(int x, int y, int w, int h) {
+    ssd1306_draw_dotted_line(x, y, x + w - 1, y);
+    ssd1306_draw_dotted_line(x, y + h - 1, x + w - 1, y + h - 1);
+    ssd1306_draw_dotted_line(x, y, x, y + h - 1);
+    ssd1306_draw_dotted_line(x + w - 1, y, x + w - 1, y + h - 1);
+}
+
 void ssd1306_invert_rect(int x, int y, int w, int h) {
     for (int j = y; j < y + h; j++) {
         if (j < 0 || j >= s_target->height) continue;
