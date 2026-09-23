@@ -3,6 +3,7 @@
 #include "chonk_7x11.h"
 #include "mini_6x7.h"
 #include "narrow_7x11.h"
+#include "tall_9x13.h"
 #include "micro_4x7.h"
 #include "big_10x12.h"
 #include "cp437.h"
@@ -309,6 +310,14 @@ const ssd1306_font_t ssd1306_font_narrow = {
     .glyph_width = 7,
     .glyph_height = 11,
     .glyphs = kFontNarrow7x11,
+    .first_code = 32,
+    .glyph_count = 95,
+};
+
+const ssd1306_font_t ssd1306_font_tall = {
+    .glyph_width = 9,
+    .glyph_height = 13,
+    .glyphs = kFontTall9x13,
     .first_code = 32,
     .glyph_count = 95,
 };

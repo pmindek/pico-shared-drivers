@@ -59,6 +59,9 @@ extern const ssd1306_font_t ssd1306_font_mini;
 // 32 (space) through 126 ('~').
 extern const ssd1306_font_t ssd1306_font_narrow;
 
+// "Tall" - 9x13 glyphs, ASCII 32 (space) through 126 ('~').
+extern const ssd1306_font_t ssd1306_font_tall;
+
 // "Micro" - 4x7 glyphs, ASCII 32 (space) through 126 ('~').
 extern const ssd1306_font_t ssd1306_font_micro;
 
