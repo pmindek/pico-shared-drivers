@@ -51,10 +51,26 @@ extern "C" {
 // too, and stays that way until changed again (not reset when switching
 // screens).
 
+// Where an axis reading comes from, when it isn't the Pico's own ADC:
+// returns that axis as a 0-4095 count, the same scale the on-chip ADC
+// produces, so everything downstream - centre, dead zone, curve - keeps its
+// meaning whatever is actually doing the converting. `axis` is the index
+// given to joystick_init_source(). See ads1115.h's own 12-bit helper, which
+// exists for exactly this.
+//
+// The source is NOT polled from in here: this is expected to hand back the
+// most recent reading, cheaply, however many times it's called. Whoever owns
+// the converter is responsible for keeping it fed (typically once per
+// main-loop iteration).
+typedef uint16_t (*joystick_axis_read_fn)(void *ctx, int axis);
+
 typedef struct {
-    uint x_adc_input; // 0-3 - adc_select_input()'s argument, derived from x_gpio at init
-    uint y_adc_input;
-    uint16_t center_x; // raw 12-bit ADC reading at rest, captured by joystick_init()
+    uint x_axis; // Pico ADC input 0-3, or the source's own axis index
+    uint y_axis;
+    joystick_axis_read_fn read_axis; // NULL = read the Pico's own ADC
+    void *read_ctx;
+    uint16_t deadzone;  // raw counts either side of centre treated as exactly 0
+    uint16_t center_x; // raw 12-bit reading at rest, captured at init
     uint16_t center_y;
     uint sw_pin;
     bool sw_was_pressed;
@@ -70,6 +86,22 @@ typedef struct {
 // module comment above. `joystick` must stay valid for as long as the
 // joystick is used - its address is kept, not copied.
 void joystick_init(joystick_t *joystick, uint x_gpio, uint y_gpio, uint sw_pin);
+
+// Same, but both axes come from `read` instead of the Pico's ADC - an
+// external converter, typically because the on-chip one is too noisy for a
+// control. x_axis/y_axis are passed straight back to `read`. sw_pin is still
+// an ordinary GPIO.
+//
+// The source must already be producing readings when this is called, because
+// it calibrates the centre immediately: an external converter usually needs
+// to be polled for a few milliseconds first, or the centre gets captured
+// from whatever it reads before its first conversion finishes.
+//
+// The dead zone defaults to the same value as the Pico-ADC path, which is
+// deliberately conservative. A quieter converter should set its own - see
+// joystick_set_deadzone().
+void joystick_init_source(joystick_t *joystick, joystick_axis_read_fn read, void *ctx, int x_axis, int y_axis,
+                          uint sw_pin);
 
 // Reads both axes fresh (no caching - call as often as you want) and
 // writes normalized -1.0..+1.0 values (0.0 = centered) to *x/*y.
@@ -87,6 +119,15 @@ bool joystick_button_pressed(joystick_t *joystick);
 // pathological exponent (0, negative, huge) is the caller's problem, not
 // this driver's to silently second-guess.
 void joystick_set_curve_exponent(joystick_t *joystick, float exponent);
+
+// Raw counts either side of centre reported as exactly 0.0. This exists to
+// swallow the converter's own noise plus however much the stick's rest
+// position wanders between releases, and nothing more: every count of it is
+// travel the player can feel doing nothing. Measure both before choosing -
+// the default suits the Pico's on-chip ADC, and a quieter external converter
+// can usually go several times lower.
+void joystick_set_deadzone(joystick_t *joystick, uint16_t counts);
+uint16_t joystick_get_deadzone(const joystick_t *joystick);
 
 // Makes joystick_read() report (0, 0) - centered - until the stick has been
 // brought back below `threshold` (|x| and |y| both under it, judged on the
