@@ -1,0 +1,275 @@
+#include "st7789.h"
+
+#include "hardware/gpio.h"
+#include "pico/stdlib.h"
+
+// ---- ST7789 command opcodes ----
+// Standard across every ST7789 revision (V1/V2/V3 - the suffix is a
+// manufacturing trim, not a command-set change, as far as every library
+// and datasheet variant surveyed for this driver agrees) and identical to
+// what Adafruit's and TFT_eSPI's own ST7789 drivers use.
+#define ST7789_CMD_SWRESET 0x01
+#define ST7789_CMD_SLPOUT 0x11
+#define ST7789_CMD_NORON 0x13
+#define ST7789_CMD_INVOFF 0x20
+#define ST7789_CMD_INVON 0x21
+#define ST7789_CMD_DISPON 0x29
+#define ST7789_CMD_CASET 0x2A
+#define ST7789_CMD_RASET 0x2B
+#define ST7789_CMD_RAMWR 0x2C
+#define ST7789_CMD_MADCTL 0x36
+#define ST7789_CMD_COLMOD 0x3A
+
+// ---- Panel calibration knobs ----
+// Three things vary between otherwise-identical ST7789 breakouts, and none
+// of them can be detected in software (see st7789.h's own comment on why
+// there's no presence/ID check at all) - each is set to the more common
+// choice for a small IPS module of this type, and each has an obvious,
+// harmless visual symptom if it's wrong. Fix by flipping the one constant,
+// not by guessing at the others.
+
+// Many small IPS ST7789 breakouts are wired BGR rather than RGB internally.
+// Symptom if wrong: red and blue are swapped (a red fill looks blue).
+static const bool kBgrPanel = true;
+
+// Many IPS ST7789 panels need display inversion ON for correct (non-
+// negative) colors - a TN panel usually doesn't. Symptom if wrong: colors
+// look like a photo negative.
+static const bool kInvertColors = true;
+
+// Some 240x280 ST7789 modules have a panel smaller than the controller's
+// internal 240x320 RAM, so the visible glass sits at a row/column offset
+// into that RAM rather than at (0,0) - a controller-level detail, not
+// something this driver's own math can know without a datasheet for the
+// exact panel in hand. Symptom if wrong: the image is shifted, with the far
+// edge cut off. Start at 0 (no assumption) and adjust here if that happens.
+static const int kColOffset = 0;
+static const int kRowOffset = 0;
+
+// Conservative starting clock for first bring-up on breadboard jumper
+// wires, where wire length/quality (not the chip) is usually the real
+// limit. ST7789 write timing allows quite a bit faster (the datasheet's
+// SCK cycle spec works out to tens of MHz) - once the wiring is solid
+// (especially on a real PCB), this is the first thing worth raising to
+// speed up st7789_show(); nothing else here depends on the exact value.
+#define ST7789_SPI_HZ (20 * 1000 * 1000)
+
+static uint16_t s_buf[ST7789_WIDTH * ST7789_HEIGHT]; // row-major, one RGB565 pixel per entry
+
+static spi_inst_t *s_spi;
+static uint s_cs_pin, s_dc_pin, s_bl_pin;
+
+// ---- Framebuffer drawing - no hardware I/O below this line until st7789_show() ----
+
+void st7789_clear(uint16_t color)
+{
+    for (int i = 0; i < ST7789_WIDTH * ST7789_HEIGHT; i++) s_buf[i] = color;
+}
+
+void st7789_draw_pixel(int x, int y, uint16_t color)
+{
+    if (x < 0 || x >= ST7789_WIDTH || y < 0 || y >= ST7789_HEIGHT) return;
+    s_buf[y * ST7789_WIDTH + x] = color;
+}
+
+void st7789_fill_rect(int x, int y, int w, int h, uint16_t color)
+{
+    int x0 = x < 0 ? 0 : x;
+    int y0 = y < 0 ? 0 : y;
+    int x1 = x + w;
+    int y1 = y + h;
+    if (x1 > ST7789_WIDTH) x1 = ST7789_WIDTH;
+    if (y1 > ST7789_HEIGHT) y1 = ST7789_HEIGHT;
+
+    for (int j = y0; j < y1; j++) {
+        for (int i = x0; i < x1; i++) {
+            s_buf[j * ST7789_WIDTH + i] = color;
+        }
+    }
+}
+
+// Midpoint circle algorithm (Bresenham's circle), outline only - 8-way
+// symmetry, one octant computed and mirrored. Same technique as
+// ssd1306_draw_circle() in the shared ssd1306 driver, just against this
+// driver's own pixel setter.
+void st7789_draw_circle(int cx, int cy, int r, uint16_t color)
+{
+    int x = r, y = 0;
+    int err = 1 - r;
+    while (x >= y) {
+        st7789_draw_pixel(cx + x, cy + y, color);
+        st7789_draw_pixel(cx + y, cy + x, color);
+        st7789_draw_pixel(cx - y, cy + x, color);
+        st7789_draw_pixel(cx - x, cy + y, color);
+        st7789_draw_pixel(cx - x, cy - y, color);
+        st7789_draw_pixel(cx - y, cy - x, color);
+        st7789_draw_pixel(cx + y, cy - x, color);
+        st7789_draw_pixel(cx + x, cy - y, color);
+        y++;
+        if (err < 0) {
+            err += 2 * y + 1;
+        } else {
+            x--;
+            err += 2 * (y - x) + 1;
+        }
+    }
+}
+
+// Same algorithm as st7789_draw_circle(), but each symmetric point pair is
+// a horizontal span filled with st7789_fill_rect() instead of two pixels -
+// turns the outline into a solid disc with no gaps and no doubled-up
+// pixels along the way.
+void st7789_fill_circle(int cx, int cy, int r, uint16_t color)
+{
+    int x = r, y = 0;
+    int err = 1 - r;
+    while (x >= y) {
+        st7789_fill_rect(cx - x, cy + y, 2 * x + 1, 1, color);
+        st7789_fill_rect(cx - x, cy - y, 2 * x + 1, 1, color);
+        st7789_fill_rect(cx - y, cy + x, 2 * y + 1, 1, color);
+        st7789_fill_rect(cx - y, cy - x, 2 * y + 1, 1, color);
+        y++;
+        if (err < 0) {
+            err += 2 * y + 1;
+        } else {
+            x--;
+            err += 2 * (y - x) + 1;
+        }
+    }
+}
+
+// ---- Hardware I/O ----
+
+static void cs_select(void) { gpio_put(s_cs_pin, 0); }
+static void cs_deselect(void) { gpio_put(s_cs_pin, 1); }
+
+static void write_cmd(uint8_t cmd)
+{
+    cs_select();
+    gpio_put(s_dc_pin, 0); // command
+    spi_write_blocking(s_spi, &cmd, 1);
+    cs_deselect();
+}
+
+static void write_data(const uint8_t *data, size_t len)
+{
+    cs_select();
+    gpio_put(s_dc_pin, 1); // data
+    spi_write_blocking(s_spi, data, len);
+    cs_deselect();
+}
+
+static void write_data8(uint8_t value) { write_data(&value, 1); }
+
+// Sets the controller's active pixel window to the whole panel, offset by
+// kColOffset/kRowOffset - CASET/RASET each take a 16-bit start and end
+// column/row, big-endian, one byte pair each.
+static void set_full_window(void)
+{
+    uint8_t col[4] = {
+        (uint8_t)(kColOffset >> 8), (uint8_t)(kColOffset & 0xFF),
+        (uint8_t)((kColOffset + ST7789_WIDTH - 1) >> 8), (uint8_t)((kColOffset + ST7789_WIDTH - 1) & 0xFF),
+    };
+    uint8_t row[4] = {
+        (uint8_t)(kRowOffset >> 8), (uint8_t)(kRowOffset & 0xFF),
+        (uint8_t)((kRowOffset + ST7789_HEIGHT - 1) >> 8), (uint8_t)((kRowOffset + ST7789_HEIGHT - 1) & 0xFF),
+    };
+    write_cmd(ST7789_CMD_CASET);
+    write_data(col, sizeof(col));
+    write_cmd(ST7789_CMD_RASET);
+    write_data(row, sizeof(row));
+}
+
+void st7789_init(spi_inst_t *spi, uint sck_pin, uint mosi_pin, uint cs_pin, uint dc_pin, uint rst_pin, uint bl_pin)
+{
+    s_spi = spi;
+    s_cs_pin = cs_pin;
+    s_dc_pin = dc_pin;
+    s_bl_pin = bl_pin;
+
+    spi_init(s_spi, ST7789_SPI_HZ);
+    gpio_set_function(sck_pin, GPIO_FUNC_SPI);
+    gpio_set_function(mosi_pin, GPIO_FUNC_SPI);
+    // MISO deliberately not configured - this panel's SDO isn't wired (see
+    // PINOUT.md), and nothing here ever reads from the bus.
+
+    // CS is managed by hand (plain GPIO, not GPIO_FUNC_SPI's automatic
+    // hardware chip-select) so every command/data write below can bracket
+    // its own burst exactly - same convention most ST7789 driver code
+    // uses, and it sidesteps any question of how the SPI block's own
+    // auto-CS timing lines up with DC.
+    gpio_init(s_cs_pin);
+    gpio_set_dir(s_cs_pin, GPIO_OUT);
+    gpio_put(s_cs_pin, 1);
+
+    gpio_init(s_dc_pin);
+    gpio_set_dir(s_dc_pin, GPIO_OUT);
+
+    gpio_init(rst_pin);
+    gpio_set_dir(rst_pin, GPIO_OUT);
+
+    gpio_init(s_bl_pin);
+    gpio_set_dir(s_bl_pin, GPIO_OUT);
+    gpio_put(s_bl_pin, 0); // stay dark until the init sequence below finishes - no point lighting up garbage
+
+    // Hardware reset: the datasheet's minimum low pulse is 10us; held for
+    // 10ms here, generously, since there's no reason to cut it close on a
+    // one-time boot-time reset.
+    gpio_put(rst_pin, 1);
+    sleep_ms(10);
+    gpio_put(rst_pin, 0);
+    sleep_ms(10);
+    gpio_put(rst_pin, 1);
+    sleep_ms(120); // panel's own post-reset settling time before it will accept commands
+
+    write_cmd(ST7789_CMD_SWRESET);
+    sleep_ms(150);
+
+    write_cmd(ST7789_CMD_SLPOUT);
+    sleep_ms(120);
+
+    write_cmd(ST7789_CMD_COLMOD);
+    write_data8(0x55); // 16 bits/pixel (5-6-5) - matches this driver's RGB565 framebuffer
+
+    // MY=0 MX=0 MV=0 (no rotation/flip) - BGR bit set per kBgrPanel, see
+    // its own comment.
+    write_cmd(ST7789_CMD_MADCTL);
+    write_data8(kBgrPanel ? 0x08 : 0x00);
+
+    write_cmd(kInvertColors ? ST7789_CMD_INVON : ST7789_CMD_INVOFF);
+    write_cmd(ST7789_CMD_NORON);
+
+    write_cmd(ST7789_CMD_DISPON);
+    sleep_ms(100);
+
+    gpio_put(s_bl_pin, 1);
+}
+
+void st7789_set_backlight(bool on)
+{
+    gpio_put(s_bl_pin, on);
+}
+
+void st7789_show(void)
+{
+    set_full_window();
+    write_cmd(ST7789_CMD_RAMWR);
+
+    // One long burst: the whole framebuffer, byte-swapped to big-endian on
+    // the wire (RGB565 as a 16-bit value is MSB-first per the ST7789
+    // datasheet, but s_buf's own uint16_t entries are stored in this
+    // machine's native (little) endianness) - spi_write_blocking() takes a
+    // byte buffer, so this can't just point it at s_buf directly.
+    cs_select();
+    gpio_put(s_dc_pin, 1);
+    static uint8_t line[ST7789_WIDTH * 2]; // one row at a time - 480 bytes, not 134KB, on the stack/static either way
+    for (int row = 0; row < ST7789_HEIGHT; row++) {
+        for (int col = 0; col < ST7789_WIDTH; col++) {
+            uint16_t px = s_buf[row * ST7789_WIDTH + col];
+            line[col * 2] = (uint8_t)(px >> 8);
+            line[col * 2 + 1] = (uint8_t)(px & 0xFF);
+        }
+        spi_write_blocking(s_spi, line, sizeof(line));
+    }
+    cs_deselect();
+}
