@@ -53,9 +53,11 @@ static void init_common(joystick_t *joystick, uint sw_pin)
     joystick->sw_pin = sw_pin;
     joystick->sw_was_pressed = false;
     joystick->sw_last_change_us = 0;
-    gpio_init(sw_pin);
-    gpio_set_dir(sw_pin, GPIO_IN);
-    gpio_pull_up(sw_pin); // button should connect the pin to GND when pressed
+    if (sw_pin != JOYSTICK_NO_SW) {
+        gpio_init(sw_pin);
+        gpio_set_dir(sw_pin, GPIO_IN);
+        gpio_pull_up(sw_pin); // button should connect the pin to GND when pressed
+    }
 
     joystick->deadzone = JOYSTICK_DEADZONE;
     joystick->curve_exponent = 1.0f;
@@ -178,6 +180,8 @@ void joystick_read(joystick_t *joystick, float *x, float *y)
 
 bool joystick_button_pressed(joystick_t *joystick)
 {
+    if (joystick->sw_pin == JOYSTICK_NO_SW) return false; // no button wired - see JOYSTICK_NO_SW
+
     bool is_pressed = !gpio_get(joystick->sw_pin); // active low
     uint64_t now = time_us_64();
 

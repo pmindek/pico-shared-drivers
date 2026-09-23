@@ -64,6 +64,13 @@ extern "C" {
 // main-loop iteration).
 typedef uint16_t (*joystick_axis_read_fn)(void *ctx, int axis);
 
+// Pass as sw_pin for a stick whose button isn't wired to a GPIO - either
+// it has none, or it's reached some other way (an i2c expander, say).
+// joystick_button_pressed() then always reports false, and no pin is
+// touched at init. Using a real-but-unconnected pin instead would read as
+// a button pressing itself, or quietly claim a pin something else wants.
+#define JOYSTICK_NO_SW ((uint)~0u)
+
 typedef struct {
     uint x_axis; // Pico ADC input 0-3, or the source's own axis index
     uint y_axis;
