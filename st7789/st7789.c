@@ -1,6 +1,7 @@
 #include "st7789.h"
 
 #include "hardware/gpio.h"
+#include "hardware/pwm.h"
 #include "pico/stdlib.h"
 
 // Raw glyph-bitmap data only (no struct, no i2c) - the exact same headers
@@ -71,6 +72,12 @@ static const int kRowOffset = 20;
 // (especially on a real PCB), this is the first thing worth raising to
 // speed up st7789_show(); nothing else here depends on the exact value.
 #define ST7789_SPI_HZ (20 * 1000 * 1000)
+
+// Backlight PWM: full 16-bit counter, default (1x) clock divider - lands in
+// the low kHz range regardless of the exact system clock (150MHz/65536 is
+// ~2.3kHz, and it won't move far from that), comfortably above visible
+// flicker without needing to query clk_sys just to pick a divider.
+#define BACKLIGHT_PWM_WRAP 65535
 
 static uint16_t s_buf[ST7789_WIDTH * ST7789_HEIGHT]; // row-major, one RGB565 pixel per entry
 
@@ -267,9 +274,15 @@ void st7789_init(spi_inst_t *spi, uint sck_pin, uint mosi_pin, uint cs_pin, uint
     gpio_init(rst_pin);
     gpio_set_dir(rst_pin, GPIO_OUT);
 
-    gpio_init(s_bl_pin);
-    gpio_set_dir(s_bl_pin, GPIO_OUT);
-    gpio_put(s_bl_pin, 0); // stay dark until the init sequence below finishes - no point lighting up garbage
+    // PWM, not a plain GPIO_OUT: st7789_set_backlight_level() needs a duty
+    // cycle to vary, and this is the same pin either way (every RP2350 GPIO
+    // is PWM-capable), so there's no reason to keep the old on/off-only
+    // path around as well.
+    gpio_set_function(s_bl_pin, GPIO_FUNC_PWM);
+    uint bl_slice = pwm_gpio_to_slice_num(s_bl_pin);
+    pwm_set_wrap(bl_slice, BACKLIGHT_PWM_WRAP);
+    pwm_set_enabled(bl_slice, true);
+    st7789_set_backlight_level(0); // stay dark until the init sequence below finishes - no point lighting up garbage
 
     // Hardware reset: the datasheet's minimum low pulse is 10us; held for
     // 10ms here, generously, since there's no reason to cut it close on a
@@ -301,12 +314,20 @@ void st7789_init(spi_inst_t *spi, uint sck_pin, uint mosi_pin, uint cs_pin, uint
     write_cmd(ST7789_CMD_DISPON);
     sleep_ms(100);
 
-    gpio_put(s_bl_pin, 1);
+    st7789_set_backlight_level(100);
+}
+
+void st7789_set_backlight_level(uint8_t percent)
+{
+    if (percent > 100) percent = 100;
+    uint slice = pwm_gpio_to_slice_num(s_bl_pin);
+    uint chan = pwm_gpio_to_channel(s_bl_pin);
+    pwm_set_chan_level(slice, chan, (uint32_t)percent * BACKLIGHT_PWM_WRAP / 100);
 }
 
 void st7789_set_backlight(bool on)
 {
-    gpio_put(s_bl_pin, on);
+    st7789_set_backlight_level(on ? 100 : 0);
 }
 
 void st7789_show(void)

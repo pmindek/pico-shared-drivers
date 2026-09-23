@@ -54,18 +54,21 @@ extern "C" {
 // the 4 GPIOs, drives a hardware reset pulse, and sends the panel's init
 // sequence. sck_pin/mosi_pin must be a valid SPI0/SPI1 alternate-function
 // pair for whichever `spi` instance you pass (see PINOUT.md's own note on
-// how those were chosen for gyros) - cs_pin/dc_pin/rst_pin/bl_pin are
-// plain GPIOs, any free pin works. bl_pin is driven as a plain on/off
-// output here, not PWM - see st7789_set_backlight()'s own comment if you
-// want dimming.
+// how those were chosen for gyros) - cs_pin/dc_pin/rst_pin are plain
+// GPIOs, any free pin works. bl_pin is claimed as PWM (GPIO_FUNC_PWM), not
+// a plain output - see st7789_set_backlight_level().
 //
 // Returns void, not bool - see this header's own comment on why presence
 // can't be detected. Call it once, before anything else here.
 void st7789_init(spi_inst_t *spi, uint sck_pin, uint mosi_pin, uint cs_pin, uint dc_pin, uint rst_pin, uint bl_pin);
 
-// On/off only - see st7789_init()'s own comment. Independent of
-// st7789_show()/the framebuffer, same convention as ssd1306_set_display_
-// on(): whatever's already on screen stays there, just unlit or lit.
+// 0 (off) to 100 (full brightness), via PWM - values above 100 clamp to 100.
+// Independent of st7789_show()/the framebuffer, same convention as
+// ssd1306_set_display_on(): whatever's already on screen stays there, just
+// dimmer or brighter.
+void st7789_set_backlight_level(uint8_t percent);
+
+// Convenience wrapper: st7789_set_backlight_level(on ? 100 : 0).
 void st7789_set_backlight(bool on);
 
 // Framebuffer drawing - nothing reaches the panel until st7789_show().
