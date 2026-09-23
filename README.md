@@ -75,5 +75,20 @@ in each project points at `lib/shared/<driver>/...`.
   lower `release_threshold`) to stay robust against ADC/pot noise or hand
   tremor wobbling right at a single boundary value.
 
+- `st7789/` - ST7789 SPI color TFT driver (RGB565 framebuffer, shapes,
+  text via the same font bitmap data as `ssd1306/`, PWM-dimmable
+  backlight).
+- `pigs/` - a display-agnostic drawing/UI layer sitting on top of
+  `ssd1306`/`st7789` (or a future third display) via a small backend
+  vtable (native width/height + draw_pixel/fill_rect/show). One
+  implementation of color (RGB565, quantized to black/white/dithered-gray
+  on a monochrome backend), rotation (0/90/180/270, runtime-settable - a
+  project with an IMU can drive it from live tilt for auto-rotation), and
+  text, instead of that logic living separately in each display driver.
+  `pigs_backend_st7789()`/`pigs_backend_ssd1306()` are the two existing
+  backends; a new display type is exactly that shape (a `pigs_backend_t`
+  plus a getter) and nothing else in `pigs.c` needs to change. First real
+  use: `birch`'s `screen_pigs_demo.cpp`.
+
 More drivers belong here too - add a new subdirectory per driver rather
 than growing one grab-bag file.
