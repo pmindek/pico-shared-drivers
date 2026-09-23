@@ -72,6 +72,16 @@ bool aw9523_init(aw9523_t *dev, i2c_inst_t *i2c, uint8_t addr, uint16_t input_ma
     // Port 0 defaults to open-drain, which can't source current and so
     // can't drive a plain output high. Push-pull makes both ports behave
     // the same. (Port 1 is always push-pull.)
+    //
+    // Two things about this register, both from the datasheet (V2.4, table
+    // for 11H):
+    //   - ISEL in bits [1:0] picks the LED current ceiling, and 00 is the
+    //     FULL 37mA, not the smallest: 00 = IMAX, 01 = 3/4, 10 = 2/4,
+    //     11 = 1/4. A quarter, ~9mA, is plenty for indicator LEDs and keeps
+    //     four of them off a battery's back.
+    //   - Bits [7:5] and [3:2] are test bits that "must configure to 0, or
+    //     system function error may occur". So never OR anything else into
+    //     this register without checking what those bits would become.
     ok &= write_reg(dev, AW9523_REG_GCR, AW9523_GCR_P0_PUSH_PULL | (uint8_t)AW9523_LED_RANGE_QUARTER);
 
     // Outputs start low, before anything is switched away from GPIO mode,
