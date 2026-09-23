@@ -79,6 +79,17 @@ static const int kRowOffset = 20;
 // flicker without needing to query clk_sys just to pick a divider.
 #define BACKLIGHT_PWM_WRAP 65535
 
+// What st7789_init() leaves the backlight at, before any caller touches it.
+// Unlike kBgrPanel/kColOffset/kRowOffset above, this isn't a hardware-
+// correctness fix - it's this panel's owner's own comfortable-viewing
+// brightness on their desk (2026-09-24), a preference rather than a fact
+// about the silicon (measured current draw at nearby levels: 24mA at 0%,
+// 35mA at 16%, 58mA at 52%, 86mA at 100% - the 24mA floor is the rest of
+// the circuit, not the LED; see PINOUT.md/memory for the full readout).
+// Any caller can override it with a single st7789_set_backlight_level()
+// call right after st7789_init() returns.
+static const uint8_t kDefaultBacklightPercent = 20;
+
 static uint16_t s_buf[ST7789_WIDTH * ST7789_HEIGHT]; // row-major, one RGB565 pixel per entry
 
 static spi_inst_t *s_spi;
@@ -314,7 +325,7 @@ void st7789_init(spi_inst_t *spi, uint sck_pin, uint mosi_pin, uint cs_pin, uint
     write_cmd(ST7789_CMD_DISPON);
     sleep_ms(100);
 
-    st7789_set_backlight_level(100);
+    st7789_set_backlight_level(kDefaultBacklightPercent);
 }
 
 void st7789_set_backlight_level(uint8_t percent)
