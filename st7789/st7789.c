@@ -28,23 +28,29 @@
 // harmless visual symptom if it's wrong. Fix by flipping the one constant,
 // not by guessing at the others.
 
-// Many small IPS ST7789 breakouts are wired BGR rather than RGB internally.
-// Symptom if wrong: red and blue are swapped (a red fill looks blue).
-static const bool kBgrPanel = true;
+// Many small IPS ST7789 breakouts are wired BGR rather than RGB internally,
+// but this one isn't - confirmed on real hardware (2026-09-24): a filled
+// ST7789_RED circle came out blue with kBgrPanel=true, exactly the R/B
+// swap this flag exists to correct, so it needs to be off here.
+static const bool kBgrPanel = false;
 
 // Many IPS ST7789 panels need display inversion ON for correct (non-
 // negative) colors - a TN panel usually doesn't. Symptom if wrong: colors
 // look like a photo negative.
 static const bool kInvertColors = true;
 
-// Some 240x280 ST7789 modules have a panel smaller than the controller's
-// internal 240x320 RAM, so the visible glass sits at a row/column offset
-// into that RAM rather than at (0,0) - a controller-level detail, not
-// something this driver's own math can know without a datasheet for the
-// exact panel in hand. Symptom if wrong: the image is shifted, with the far
-// edge cut off. Start at 0 (no assumption) and adjust here if that happens.
+// Confirmed on real hardware (2026-09-24): this panel is exactly this
+// case. The controller's RAM is 320 rows tall; the 280-row glass is
+// mounted starting 20 rows in, not at row 0 - the common "center a 280-row
+// panel in 320 rows of GRAM" layout (20px margin top and bottom). Writing
+// to GRAM rows 0-279 (the old default, kRowOffset=0) put the image 20 rows
+// higher than the glass shows it - its top 20 rows displayed image rows
+// 20+ instead of 0+ (the reported "shifted upward"), and its bottom 20
+// rows showed GRAM the driver never wrote to at all (the reported "colored
+// noise"). Writing to the glass's own actual window, GRAM rows 20-299,
+// fixes both at once. Width matches (240 = 240), so no column offset.
 static const int kColOffset = 0;
-static const int kRowOffset = 0;
+static const int kRowOffset = 20;
 
 // Conservative starting clock for first bring-up on breadboard jumper
 // wires, where wire length/quality (not the chip) is usually the real
