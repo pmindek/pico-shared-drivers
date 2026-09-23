@@ -14,6 +14,29 @@
 static i2c_inst_t *s_i2c;
 static uint8_t s_addr;
 
+// i2c_write_blocking() has no timeout on this SDK: against a panel that
+// never ACKs - unplugged, mis-wired, or moved to different pins - it blocks
+// forever. That used to happen inside ssd1306_init(), i.e. before any of the
+// app existed, so an unplugged display presented as a completely dead board
+// with no console output and nothing to go on. Every write here is bounded
+// now, and a missing panel is reported instead. Same value and reasoning as
+// mpr121.c/aw9523.c.
+#define SSD1306_I2C_TIMEOUT_US 50000
+
+// False until a panel has answered, and again once one stops answering. It
+// gates every write, so a board with no display runs the whole app at full
+// speed with the screen simply absent, rather than paying a timeout per
+// write forever.
+static bool s_present = false;
+
+// A full frame is 8 page writes. Without this, a panel that dies mid-session
+// would cost 8 timeouts - nearly half a second - on every single frame, which
+// looks exactly like a hung app even though nothing is stuck. One failed
+// write abandons the rest of that frame, and a few failed frames in a row
+// give up on the panel until someone calls ssd1306_init() again.
+static int s_consecutive_failures = 0;
+#define SSD1306_MAX_CONSECUTIVE_FAILURES 5
+
 // 1 bit per pixel, paged: 8 vertical pages of 128 columns each. Always the
 // display's own framebuffer specifically - ssd1306_show() pushes this and
 // only this, regardless of the current draw target (see s_target below).
@@ -53,14 +76,38 @@ static inline bool checkerboard_allows(int x, int y) {
     return !s_checkerboard_debug || ((x ^ y) & 1) == 0;
 }
 
-static void ssd1306_cmd(uint8_t cmd) {
-    uint8_t buf[2] = {0x00, cmd}; // control byte 0x00 = command
-    i2c_write_blocking(s_i2c, s_addr, buf, 2, false);
+// The one place bytes actually go out. Bypasses s_present on purpose, so
+// ssd1306_init() can probe a panel that isn't marked present yet.
+static bool ssd1306_write(const uint8_t *buf, size_t len) {
+    return i2c_write_timeout_us(s_i2c, s_addr, buf, len, false, SSD1306_I2C_TIMEOUT_US) == (int)len;
 }
 
-void ssd1306_init(i2c_inst_t *i2c, uint8_t addr) {
+static void ssd1306_note_failure(void) {
+    if (++s_consecutive_failures < SSD1306_MAX_CONSECUTIVE_FAILURES) return;
+    s_present = false;
+}
+
+static bool ssd1306_cmd(uint8_t cmd) {
+    if (!s_present) return false;
+    uint8_t buf[2] = {0x00, cmd}; // control byte 0x00 = command
+    if (ssd1306_write(buf, 2)) return true;
+    ssd1306_note_failure();
+    return false;
+}
+
+bool ssd1306_init(i2c_inst_t *i2c, uint8_t addr) {
     s_i2c = i2c;
     s_addr = addr;
+    s_present = false;
+    s_consecutive_failures = 0;
+
+    // Probe before anything else: one command, and if the panel doesn't ACK
+    // it, stop here. Costs a single bounded timeout instead of one per
+    // command, and it's what turns "no display" from a hang into a return
+    // value the caller can report.
+    const uint8_t probe[2] = {0x00, 0xAE}; // display off - harmless either way
+    if (!ssd1306_write(probe, 2)) return false;
+    s_present = true;
 
     static const uint8_t init_cmds[] = {
         0xAE,       // display off
@@ -84,12 +131,25 @@ void ssd1306_init(i2c_inst_t *i2c, uint8_t addr) {
         0xAF,       // display on
     };
 
+    // Checked, not fired and forgotten: a panel that ACKs its address but
+    // drops a configuration write comes up in a half-set-up state that looks
+    // like a hardware fault (wrong size, scrambled, inverted). Same lesson
+    // as mpr121_init()'s checked writes.
+    bool ok = true;
     for (size_t i = 0; i < sizeof(init_cmds); i++) {
-        ssd1306_cmd(init_cmds[i]);
+        ok = ssd1306_cmd(init_cmds[i]) && ok;
+    }
+    if (!ok) {
+        s_present = false;
+        return false;
     }
 
     ssd1306_clear();
-    ssd1306_show();
+    return ssd1306_show();
+}
+
+bool ssd1306_is_present(void) {
+    return s_present;
 }
 
 void ssd1306_clear(void) {
@@ -330,19 +390,29 @@ void ssd1306_set_display_on(bool on) {
     ssd1306_cmd(on ? 0xAF : 0xAE);
 }
 
-void ssd1306_show(void) {
+bool ssd1306_show(void) {
+    if (!s_present) return false; // no panel: drawing still works, it just goes nowhere
+
     // Constrain the column/page range so the whole 128x64 buffer gets pushed.
-    ssd1306_cmd(0x21); // set column address
-    ssd1306_cmd(0);
-    ssd1306_cmd(SSD1306_WIDTH - 1);
-    ssd1306_cmd(0x22); // set page address
-    ssd1306_cmd(0);
-    ssd1306_cmd((SSD1306_HEIGHT / 8) - 1);
+    if (!ssd1306_cmd(0x21)) return false; // set column address
+    if (!ssd1306_cmd(0)) return false;
+    if (!ssd1306_cmd(SSD1306_WIDTH - 1)) return false;
+    if (!ssd1306_cmd(0x22)) return false; // set page address
+    if (!ssd1306_cmd(0)) return false;
+    if (!ssd1306_cmd((SSD1306_HEIGHT / 8) - 1)) return false;
 
     uint8_t tx[SSD1306_WIDTH + 1];
     tx[0] = 0x40; // control byte: data
     for (int page = 0; page < SSD1306_HEIGHT / 8; page++) {
         memcpy(&tx[1], &s_buf[page * SSD1306_WIDTH], SSD1306_WIDTH);
-        i2c_write_blocking(s_i2c, s_addr, tx, SSD1306_WIDTH + 1, false);
+        if (!ssd1306_write(tx, SSD1306_WIDTH + 1)) {
+            // Abandon the rest of the frame rather than paying a timeout per
+            // remaining page - see s_consecutive_failures.
+            ssd1306_note_failure();
+            return false;
+        }
     }
+
+    s_consecutive_failures = 0;
+    return true;
 }

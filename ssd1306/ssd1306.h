@@ -101,7 +101,27 @@ typedef struct {
 
 // Initializes the display over the given i2c instance/address.
 // Caller must have already called i2c_init() and set GPIO functions/pull-ups.
-void ssd1306_init(i2c_inst_t *i2c, uint8_t addr);
+//
+// Returns false if no panel answered, or if one answered but didn't accept
+// its whole configuration sequence. CHECK IT, and say so on the console:
+// every drawing call below keeps working with no panel attached, quietly
+// rendering into a framebuffer that goes nowhere, so an unreported failure
+// here is indistinguishable from a display broken for some other reason.
+//
+// This used to return void and block forever against a panel that never
+// ACKs, which made an unplugged or mis-wired display present as a totally
+// dead board: no console output, nothing to go on. Every write is bounded
+// now, and a missing panel is reported rather than fatal.
+//
+// Safe to call again later, to retry a panel that wasn't there at boot or to
+// recover one that stopped answering - see ssd1306_is_present().
+bool ssd1306_init(i2c_inst_t *i2c, uint8_t addr);
+
+// Whether a panel is currently believed to be there: true after a successful
+// ssd1306_init(), and false again once writes keep failing. A few failed
+// frames in a row give up on the panel, so a display that dies mid-session
+// costs a few bounded timeouts rather than one per write forever.
+bool ssd1306_is_present(void);
 
 // Framebuffer drawing (nothing is sent to the display until ssd1306_show()).
 void ssd1306_clear(void);
@@ -161,8 +181,10 @@ void ssd1306_draw_text(int x, int y, const char *text, const ssd1306_font_t *fon
 // not need to be a multiple of anything.
 void ssd1306_scroll_up(int rows);
 
-// Pushes the framebuffer to the display over i2c.
-void ssd1306_show(void);
+// Pushes the framebuffer to the display over i2c. Returns false if there's
+// no panel, or if the write failed - ignoring that is fine for ordinary
+// drawing, which is why most callers do.
+bool ssd1306_show(void);
 
 // Turns the physical panel on/off (SSD1306 display on/off command) without
 // touching the framebuffer - the last-shown content reappears as-is when
