@@ -3,6 +3,18 @@
 #include "hardware/gpio.h"
 #include "pico/stdlib.h"
 
+// Raw glyph-bitmap data only (no struct, no i2c) - the exact same headers
+// ssd1306.c includes for its own font wiring. See st7789.h's own comment
+// on why the data is shared but the ssd1306_font_t/st7789_font_t *types*
+// deliberately aren't.
+#include "../ssd1306/adafruit_5x7.h"
+#include "../ssd1306/chonk_7x11.h"
+#include "../ssd1306/mini_6x7.h"
+#include "../ssd1306/narrow_7x11.h"
+#include "../ssd1306/micro_4x7.h"
+#include "../ssd1306/big_10x12.h"
+#include "../ssd1306/tall_9x13.h"
+
 // ---- ST7789 command opcodes ----
 // Standard across every ST7789 revision (V1/V2/V3 - the suffix is a
 // manufacturing trim, not a command-set change, as far as every library
@@ -140,6 +152,47 @@ void st7789_fill_circle(int cx, int cy, int r, uint16_t color)
         } else {
             x--;
             err += 2 * (y - x) + 1;
+        }
+    }
+}
+
+// ---- Fonts ----
+// Same names, same glyph data, same metrics as their ssd1306_font_* twins
+// (see st7789.h's own comment on why the data is shared but the struct
+// type isn't) - kept in the same order ssd1306.c defines them in, purely
+// so the two are easy to compare side by side.
+const st7789_font_t st7789_font_adafruit = {5, 8, kFontAdafruit5x7, 0, 256};
+const st7789_font_t st7789_font_chonk = {7, 11, kFontChonk7x11, 32, 95};
+const st7789_font_t st7789_font_mini = {6, 7, kFontMini6x7, 32, 96};
+const st7789_font_t st7789_font_narrow = {7, 11, kFontNarrow7x11, 32, 95};
+const st7789_font_t st7789_font_micro = {4, 7, kFontMicro4x7, 32, 95};
+const st7789_font_t st7789_font_big = {10, 12, kFontBig10x12, 32, 95};
+const st7789_font_t st7789_font_tall = {9, 13, kFontTall9x13, 32, 95};
+
+// Identical column-major decode to ssd1306_draw_text() (see its own
+// comment for the full reasoning) - ported, not reinvented, on purpose:
+// this bit-unpacking has already been proven against every font here, so
+// matching it exactly means there's no new place for an off-by-one to
+// creep in. The only real difference is what a lit/unlit pixel becomes -
+// fg/bg colors instead of true/false.
+void st7789_draw_text(int x, int y, const char *text, const st7789_font_t *font, int spacing_px, uint16_t fg,
+                      uint16_t bg)
+{
+    int bytes_per_col = (font->glyph_height + 7) / 8;
+    int advance = font->glyph_width + spacing_px;
+
+    for (int i = 0; text[i] != '\0'; i++) {
+        uint8_t code = (uint8_t)text[i];
+        bool has_glyph = code >= font->first_code && code - font->first_code < font->glyph_count;
+        const uint8_t *glyph =
+            has_glyph ? &font->glyphs[(code - font->first_code) * font->glyph_width * bytes_per_col] : NULL;
+
+        for (int col = 0; col < advance; col++) {
+            const uint8_t *col_bytes = (glyph && col < font->glyph_width) ? &glyph[col * bytes_per_col] : NULL;
+            for (int row = 0; row < font->glyph_height; row++) {
+                bool on = col_bytes && (col_bytes[row / 8] & (1 << (row % 8))) != 0;
+                st7789_draw_pixel(x + i * advance + col, y + row, on ? fg : bg);
+            }
         }
     }
 }

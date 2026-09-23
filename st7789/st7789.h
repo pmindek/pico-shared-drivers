@@ -84,6 +84,59 @@ void st7789_fill_circle(int cx, int cy, int r, uint16_t color);
 // takes.
 void st7789_show(void);
 
+// ---- Text ----
+//
+// A font: fixed-width glyphs for a contiguous range of character codes,
+// stored column-major - identical layout to (and, deliberately, the exact
+// same on-disk glyph data as) ssd1306_font_t in ../ssd1306/ssd1306.h. Text
+// is a hand-drawn asset, not a display-specific one, so the bitmaps
+// themselves are shared rather than redrawn or duplicated for this driver;
+// only the *type* is separate, so that using text here never requires
+// linking the unrelated ssd1306/i2c code. See st7789.c for exactly which
+// raw glyph-data headers get pulled in.
+//
+// bit N of glyphs[(code - first_code) * glyph_width * bytes_per_col + col *
+// bytes_per_col + N/8], bit N%8 of that byte = row N of that column.
+// bytes_per_col = (glyph_height + 7) / 8.
+typedef struct {
+    uint8_t glyph_width;
+    uint8_t glyph_height;
+    const uint8_t *glyphs;
+    uint8_t first_code;
+    uint16_t glyph_count;
+} st7789_font_t;
+
+// Every font ssd1306 has that's meant for actual text (not
+// ssd1306_font_main_menu/main_menu_32, which are icon slots, or
+// ssd1306_font_cp437, 256 glyphs of a code page nothing here needs yet) -
+// same names, same glyph data, same metrics as their ssd1306_font_* twins.
+extern const st7789_font_t st7789_font_adafruit;
+extern const st7789_font_t st7789_font_chonk;
+extern const st7789_font_t st7789_font_mini;
+extern const st7789_font_t st7789_font_narrow;
+extern const st7789_font_t st7789_font_micro;
+extern const st7789_font_t st7789_font_big;
+extern const st7789_font_t st7789_font_tall;
+
+// Draws `text` starting at (x,y), one glyph_width+spacing_px pixels per
+// character, left to right. Paints every pixel of every cell - the "on"
+// bits in fg, the "off" bits (and the spacing gap between characters) in
+// bg - not just the lit pixels, same convention ssd1306_draw_text() uses
+// and for the same reason: redrawing a different (e.g. blank, for erasing)
+// character over an existing one must not leave any of the old glyph
+// behind. A character code outside the font's range paints as a blank
+// (all-bg) cell rather than being skipped, so the cursor still advances by
+// one cell width - a caller stepping through a string never gets thrown
+// off by one unsupported character.
+//
+// There's no transparent mode (skip bg entirely, leave whatever was
+// already there) - not needed yet. A caller wanting text over something
+// already drawn can bg-fill first with st7789_fill_rect() using whatever
+// is already there, or this can grow a transparent variant later if
+// something actually needs one.
+void st7789_draw_text(int x, int y, const char *text, const st7789_font_t *font, int spacing_px, uint16_t fg,
+                      uint16_t bg);
+
 #ifdef __cplusplus
 }
 #endif
