@@ -194,6 +194,12 @@ bool joystick_button_pressed(joystick_t *joystick)
     return triggered;
 }
 
+bool joystick_button_held(joystick_t *joystick)
+{
+    if (joystick->sw_pin == JOYSTICK_NO_SW) return false;
+    return !gpio_get(joystick->sw_pin); // active low
+}
+
 void joystick_suppress_until_centered(joystick_t *joystick, float threshold)
 {
     joystick->rearm_threshold = threshold;

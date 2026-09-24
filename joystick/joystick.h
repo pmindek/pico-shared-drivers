@@ -118,6 +118,18 @@ void joystick_read(joystick_t *joystick, float *x, float *y);
 // edge, debounced), not while held.
 bool joystick_button_pressed(joystick_t *joystick);
 
+// True for as long as the button is currently held down - the level
+// counterpart to joystick_button_pressed()'s edge, for anything that
+// should keep happening while held (braking, a continuous-fire action)
+// rather than fire once on the press. A fresh, undebounced read of the
+// raw pin each call, deliberately independent of joystick_button_pressed()'s
+// own debounce state machine (no shared mutable state, so calling either
+// or both in the same tick is always safe) - a level query doesn't need
+// debouncing the way an edge-triggered one does: a stray bounce just
+// means a read or two that's very slightly late to reflect the true
+// state, not a spurious extra trigger.
+bool joystick_button_held(joystick_t *joystick);
+
 // Sets the response-curve exponent joystick_read() applies to both axes
 // from here on - sign(x) * |x|^exponent. 1.0 = linear (joystick_init()'s
 // default); >1.0 = soft near center, sharper near the edges (more
