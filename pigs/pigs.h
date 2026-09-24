@@ -103,6 +103,13 @@ extern const pigs_font_t pigs_font_micro;
 extern const pigs_font_t pigs_font_big;
 extern const pigs_font_t pigs_font_tall;
 
+// The only Pigs font covering more than ASCII 32-126 - full IBM PC/VGA
+// codepage 437, all 256 codes, 9x16 (see ssd1306_font_cp437's own comment
+// for provenance). The one to reach for whenever a string needs a
+// character outside plain ASCII (e.g. "ä" at CP437 code 0x84) - every
+// other font here simply has no glyph for it.
+extern const pigs_font_t pigs_font_cp437;
+
 // Claims this backend - call once, after the backend's own panel init
 // (e.g. st7789_init()/ssd1306_init()) has already brought the physical
 // display up. Pigs never touches hardware directly, only through the

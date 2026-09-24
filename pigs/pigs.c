@@ -9,6 +9,7 @@
 #include "../ssd1306/adafruit_5x7.h"
 #include "../ssd1306/big_10x12.h"
 #include "../ssd1306/chonk_7x11.h"
+#include "../ssd1306/cp437.h"
 #include "../ssd1306/micro_4x7.h"
 #include "../ssd1306/mini_6x7.h"
 #include "../ssd1306/narrow_7x11.h"
@@ -20,6 +21,7 @@ const pigs_font_t pigs_font_mini = {6, 7, kFontMini6x7, 32, 96};
 const pigs_font_t pigs_font_narrow = {7, 11, kFontNarrow7x11, 32, 95};
 const pigs_font_t pigs_font_micro = {4, 7, kFontMicro4x7, 32, 95};
 const pigs_font_t pigs_font_big = {10, 12, kFontBig10x12, 32, 95};
+const pigs_font_t pigs_font_cp437 = {9, 16, kFontCp437, 0, 256};
 const pigs_font_t pigs_font_tall = {9, 13, kFontTall9x13, 32, 95};
 
 static const pigs_backend_t *s_backend;
