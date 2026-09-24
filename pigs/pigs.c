@@ -138,3 +138,29 @@ void pigs_show(void)
 {
     s_backend->show();
 }
+
+void pigs_show_rect(int x, int y, int w, int h)
+{
+    if (w <= 0 || h <= 0) return;
+
+    if (!s_backend->show_rect) {
+        // No cheaper partial update on this backend - a full show() is
+        // always correct, just not always fast (see pigs_backend_t's own
+        // comment).
+        s_backend->show();
+        return;
+    }
+
+    // Same two-opposite-corners transform as pigs_fill_rect() - still
+    // axis-aligned afterward since rotation is always a multiple of 90
+    // degrees, so this stays one native show_rect() call, not a per-pixel
+    // or per-row loop.
+    int px0, py0, px1, py1;
+    to_physical(x, y, &px0, &py0);
+    to_physical(x + w - 1, y + h - 1, &px1, &py1);
+    int rx = px0 < px1 ? px0 : px1;
+    int ry = py0 < py1 ? py0 : py1;
+    int rw = (px0 < px1 ? px1 - px0 : px0 - px1) + 1;
+    int rh = (py0 < py1 ? py1 - py0 : py0 - py1) + 1;
+    s_backend->show_rect(rx, ry, rw, rh);
+}

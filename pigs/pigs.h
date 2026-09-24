@@ -76,6 +76,13 @@ typedef struct {
     void (*draw_pixel)(int x, int y, pigs_color_t color);
     void (*fill_rect)(int x, int y, int w, int h, pigs_color_t color);
     void (*show)(void);
+
+    // Optional: pushes only the given native (already-transformed,
+    // rotation-0) sub-rectangle to the panel instead of the whole frame -
+    // see pigs_show_rect(). NULL if this backend has no cheaper-than-full
+    // partial update to offer (pigs_show_rect() falls back to show() in
+    // that case) - every existing backend but st7789 leaves this NULL.
+    void (*show_rect)(int x, int y, int w, int h);
 } pigs_backend_t;
 
 // A font: fixed-width glyphs for a contiguous range of character codes,
@@ -156,6 +163,18 @@ void pigs_draw_text(int x, int y, const char *text, const pigs_font_t *font, int
 // Pushes whatever was drawn to the physical panel - a thin wrapper over
 // the backend's own show().
 void pigs_show(void);
+
+// Pushes only the given logical (pre-rotation, same coordinate space as
+// every draw call above) sub-rectangle - dramatically cheaper than
+// pigs_show() on a backend whose real bottleneck is the SPI/i2c transfer
+// itself rather than framebuffer drawing (st7789's own show_rect() exists
+// exactly because of this - see its own comment), for anything that
+// redraws a small moving element (a game's sprites, say) over an
+// otherwise-static background. Falls back to a full pigs_show() on a
+// backend with no show_rect of its own (see pigs_backend_t) - always
+// correct to call, just not always faster. Coordinates outside the
+// logical canvas are clipped, same convention as pigs_fill_rect().
+void pigs_show_rect(int x, int y, int w, int h);
 
 #ifdef __cplusplus
 }

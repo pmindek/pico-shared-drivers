@@ -14,6 +14,7 @@ static const pigs_backend_t kBackend = {
     .draw_pixel = backend_draw_pixel,
     .fill_rect = backend_fill_rect,
     .show = st7789_show,
+    .show_rect = st7789_show_rect,
 };
 
 const pigs_backend_t *pigs_backend_st7789(void) { return &kBackend; }

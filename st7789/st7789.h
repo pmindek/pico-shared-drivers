@@ -87,6 +87,19 @@ void st7789_fill_circle(int cx, int cy, int r, uint16_t color);
 // takes.
 void st7789_show(void);
 
+// Same as st7789_show(), but only pushes the given sub-rectangle - a
+// smaller CASET/RASET window, then only that rectangle's own pixels out of
+// the framebuffer. For anything that redraws a small moving element over
+// an otherwise-static background (a game's sprites, say): pushing just the
+// old-and-new bounding box of what actually changed is dramatically
+// cheaper than a full st7789_show() every frame, since the SPI transfer
+// itself - not the framebuffer drawing - is what a full push actually
+// costs the most time on (see st7789.c's own timing comment on
+// ST7789_SPI_HZ). Coordinates outside the panel are clipped, same
+// convention as every st7789_* drawing call; a fully-clipped-away
+// rectangle is a no-op.
+void st7789_show_rect(int x, int y, int w, int h);
+
 // ---- Text ----
 //
 // A font: fixed-width glyphs for a contiguous range of character codes,

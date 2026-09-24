@@ -238,18 +238,21 @@ static void write_data(const uint8_t *data, size_t len)
 
 static void write_data8(uint8_t value) { write_data(&value, 1); }
 
-// Sets the controller's active pixel window to the whole panel, offset by
-// kColOffset/kRowOffset - CASET/RASET each take a 16-bit start and end
-// column/row, big-endian, one byte pair each.
-static void set_full_window(void)
+// Sets the controller's active pixel window to the given rectangle (in
+// framebuffer/logical coordinates - kColOffset/kRowOffset are added here,
+// callers never add them themselves) - CASET/RASET each take a 16-bit
+// start and end column/row, big-endian, one byte pair each. Every caller
+// is expected to have already clipped x/y/w/h to the panel's own bounds.
+static void set_window(int x, int y, int w, int h)
 {
+    int x1 = x + w - 1, y1 = y + h - 1;
     uint8_t col[4] = {
-        (uint8_t)(kColOffset >> 8), (uint8_t)(kColOffset & 0xFF),
-        (uint8_t)((kColOffset + ST7789_WIDTH - 1) >> 8), (uint8_t)((kColOffset + ST7789_WIDTH - 1) & 0xFF),
+        (uint8_t)((kColOffset + x) >> 8), (uint8_t)((kColOffset + x) & 0xFF),
+        (uint8_t)((kColOffset + x1) >> 8), (uint8_t)((kColOffset + x1) & 0xFF),
     };
     uint8_t row[4] = {
-        (uint8_t)(kRowOffset >> 8), (uint8_t)(kRowOffset & 0xFF),
-        (uint8_t)((kRowOffset + ST7789_HEIGHT - 1) >> 8), (uint8_t)((kRowOffset + ST7789_HEIGHT - 1) & 0xFF),
+        (uint8_t)((kRowOffset + y) >> 8), (uint8_t)((kRowOffset + y) & 0xFF),
+        (uint8_t)((kRowOffset + y1) >> 8), (uint8_t)((kRowOffset + y1) & 0xFF),
     };
     write_cmd(ST7789_CMD_CASET);
     write_data(col, sizeof(col));
@@ -343,7 +346,7 @@ void st7789_set_backlight(bool on)
 
 void st7789_show(void)
 {
-    set_full_window();
+    set_window(0, 0, ST7789_WIDTH, ST7789_HEIGHT);
     write_cmd(ST7789_CMD_RAMWR);
 
     // One long burst: the whole framebuffer, byte-swapped to big-endian on
@@ -361,6 +364,36 @@ void st7789_show(void)
             line[col * 2 + 1] = (uint8_t)(px & 0xFF);
         }
         spi_write_blocking(s_spi, line, sizeof(line));
+    }
+    cs_deselect();
+}
+
+void st7789_show_rect(int x, int y, int w, int h)
+{
+    // Same clipping shape as st7789_fill_rect().
+    if (x < 0) { w += x; x = 0; }
+    if (y < 0) { h += y; y = 0; }
+    if (x + w > ST7789_WIDTH) w = ST7789_WIDTH - x;
+    if (y + h > ST7789_HEIGHT) h = ST7789_HEIGHT - y;
+    if (w <= 0 || h <= 0) return;
+
+    set_window(x, y, w, h);
+    write_cmd(ST7789_CMD_RAMWR);
+
+    // Same byte-swap-per-row approach as st7789_show(), just w pixels wide
+    // and only for rows y..y+h-1 - see that function's own comment on why
+    // the swap can't just point spi_write_blocking() at s_buf directly.
+    cs_select();
+    gpio_put(s_dc_pin, 1);
+    static uint8_t line[ST7789_WIDTH * 2]; // sized for the widest possible call; only the first w*2 bytes are used
+    for (int row = y; row < y + h; row++) {
+        for (int col = x; col < x + w; col++) {
+            uint16_t px = s_buf[row * ST7789_WIDTH + col];
+            int i = (col - x) * 2;
+            line[i] = (uint8_t)(px >> 8);
+            line[i + 1] = (uint8_t)(px & 0xFF);
+        }
+        spi_write_blocking(s_spi, line, (size_t)w * 2);
     }
     cs_deselect();
 }
