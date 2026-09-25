@@ -6,6 +6,7 @@
 // (see pigs.h's own comment) - these just forward, no conversion needed.
 static void backend_draw_pixel(int x, int y, pigs_color_t color) { st7789_draw_pixel(x, y, color); }
 static void backend_fill_rect(int x, int y, int w, int h, pigs_color_t color) { st7789_fill_rect(x, y, w, h, color); }
+static pigs_color_t backend_read_pixel(int x, int y) { return st7789_get_pixel(x, y); }
 
 static const pigs_backend_t kBackend = {
     .width = ST7789_WIDTH,
@@ -15,6 +16,7 @@ static const pigs_backend_t kBackend = {
     .fill_rect = backend_fill_rect,
     .show = st7789_show,
     .show_rect = st7789_show_rect,
+    .read_pixel = backend_read_pixel,
 };
 
 const pigs_backend_t *pigs_backend_st7789(void) { return &kBackend; }

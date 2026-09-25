@@ -108,6 +108,12 @@ void st7789_draw_pixel(int x, int y, uint16_t color)
     s_buf[y * ST7789_WIDTH + x] = color;
 }
 
+uint16_t st7789_get_pixel(int x, int y)
+{
+    if (x < 0 || x >= ST7789_WIDTH || y < 0 || y >= ST7789_HEIGHT) return 0; // black
+    return s_buf[y * ST7789_WIDTH + x];
+}
+
 void st7789_fill_rect(int x, int y, int w, int h, uint16_t color)
 {
     int x0 = x < 0 ? 0 : x;

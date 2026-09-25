@@ -82,6 +82,15 @@ void pigs_draw_pixel(int x, int y, pigs_color_t color)
     s_backend->draw_pixel(px, py, color);
 }
 
+bool pigs_read_pixel(int x, int y, pigs_color_t *out)
+{
+    if (!s_backend->read_pixel) return false;
+    int px, py;
+    to_physical(x, y, &px, &py);
+    *out = s_backend->read_pixel(px, py);
+    return true;
+}
+
 void pigs_fill_rect(int x, int y, int w, int h, pigs_color_t color)
 {
     if (w <= 0 || h <= 0) return;

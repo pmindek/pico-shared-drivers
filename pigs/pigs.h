@@ -83,6 +83,14 @@ typedef struct {
     // partial update to offer (pigs_show_rect() falls back to show() in
     // that case) - every existing backend but st7789 leaves this NULL.
     void (*show_rect)(int x, int y, int w, int h);
+
+    // Optional: reads back whatever's currently in this backend's own
+    // framebuffer at the given native (already-transformed, rotation-0)
+    // coordinate - see pigs_read_pixel(). NULL if this backend keeps no
+    // readable framebuffer of its own (pigs_read_pixel() reports failure
+    // in that case, rather than guessing) - ssd1306 leaves this NULL
+    // today, since nothing yet needs it there; st7789 implements it.
+    pigs_color_t (*read_pixel)(int x, int y);
 } pigs_backend_t;
 
 // A font: fixed-width glyphs for a contiguous range of character codes,
@@ -149,6 +157,19 @@ bool pigs_backend_is_color(void);
 void pigs_clear(pigs_color_t color);
 void pigs_draw_pixel(int x, int y, pigs_color_t color);
 void pigs_fill_rect(int x, int y, int w, int h, pigs_color_t color);
+
+// Reads back whatever's currently drawn at this logical (pre-rotation,
+// same coordinate space as every draw call here) coordinate - i.e. what
+// the next pigs_show()/pigs_show_rect() covering it would actually push
+// to the panel, not necessarily what's physically lit right now if that
+// hasn't happened yet. For blending a new draw against what's *really*
+// there (a translucent overlay, say) instead of re-deriving an
+// approximation of it separately. Returns false (leaving *out
+// untouched) if the active backend keeps no readable framebuffer of its
+// own (see pigs_backend_t's own read_pixel) - always check the return
+// value, this isn't universally supported the way the draw calls above
+// are.
+bool pigs_read_pixel(int x, int y, pigs_color_t *out);
 
 // Paints every pixel of every cell - the "on" bits in fg, the "off" bits
 // (and the inter-character spacing gap) in bg, not just the lit pixels -

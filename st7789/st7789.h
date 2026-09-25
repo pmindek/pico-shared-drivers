@@ -81,6 +81,16 @@ void st7789_fill_rect(int x, int y, int w, int h, uint16_t color);
 void st7789_draw_circle(int cx, int cy, int r, uint16_t color);
 void st7789_fill_circle(int cx, int cy, int r, uint16_t color);
 
+// Reads back whatever's currently in the framebuffer at (x,y) - i.e.
+// exactly what the next st7789_show()/st7789_show_rect() covering this
+// pixel would push to the panel, not necessarily what's physically lit
+// right now if that hasn't happened yet. Out-of-bounds coordinates
+// return black rather than reading outside s_buf. For callers that need
+// to blend a new draw against whatever's *actually* already rendered
+// there (translucent overlays, etc.) instead of re-deriving an
+// approximation of it by hand.
+uint16_t st7789_get_pixel(int x, int y);
+
 // Pushes the whole framebuffer to the panel over SPI - one CASET/RASET
 // covering the full screen, then one RAMWR burst of all 134,400 bytes.
 // Blocking; see st7789.c's own comment on the clock speed / how long this
