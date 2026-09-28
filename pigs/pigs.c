@@ -143,6 +143,37 @@ void pigs_draw_text(int x, int y, const char *text, const pigs_font_t *font, int
     }
 }
 
+// Same column-major decode as pigs_draw_text() just above (see its own
+// comment) - deliberately a separate, self-contained loop rather than a
+// shared helper with a "skip off pixels" flag, same convention this file
+// already follows for every other font-drawing variant. Only ever visits
+// "on" pixels: no bg fill for the "off" bits, the inter-character
+// spacing gap, or a character outside the font's range, so there's
+// nothing to iterate for those at all, unlike pigs_draw_text() (which
+// has to visit every cell, on or off, to actually paint bg into it).
+void pigs_draw_text_transparent(int x, int y, const char *text, const pigs_font_t *font, int spacing_px,
+                                 pigs_color_t fg)
+{
+    int bytes_per_col = (font->glyph_height + 7) / 8;
+    int advance = font->glyph_width + spacing_px;
+
+    for (int i = 0; text[i] != '\0'; i++) {
+        uint8_t code = (uint8_t)text[i];
+        bool has_glyph = code >= font->first_code && code - font->first_code < font->glyph_count;
+        if (!has_glyph) continue; // nothing to paint for this cell - cursor still advances via i*advance below
+
+        const uint8_t *glyph = &font->glyphs[(code - font->first_code) * font->glyph_width * bytes_per_col];
+        for (int col = 0; col < font->glyph_width; col++) {
+            const uint8_t *col_bytes = &glyph[col * bytes_per_col];
+            for (int row = 0; row < font->glyph_height; row++) {
+                if (col_bytes[row / 8] & (1 << (row % 8))) {
+                    pigs_draw_pixel(x + i * advance + col, y + row, fg);
+                }
+            }
+        }
+    }
+}
+
 void pigs_show(void)
 {
     s_backend->show();

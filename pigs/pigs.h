@@ -181,6 +181,20 @@ bool pigs_read_pixel(int x, int y, pigs_color_t *out);
 void pigs_draw_text(int x, int y, const char *text, const pigs_font_t *font, int spacing_px, pigs_color_t fg,
                      pigs_color_t bg);
 
+// Same glyph data/layout as pigs_draw_text(), but paints only the "on"
+// bits, in fg - the "off" bits, the inter-character spacing gap, and a
+// character code outside the font's range are all left untouched instead
+// of filled with a bg color, so whatever was already drawn underneath
+// (a background image, another screen element) shows through around the
+// glyph shapes rather than being overwritten with a flat rectangle. Only
+// safe to redraw over unconditionally when nothing else can have changed
+// underneath a previous draw at the same position since - unlike
+// pigs_draw_text(), this can't erase a wider or differently-shaped
+// character that used to be there, since it never touches an "off"
+// pixel to begin with.
+void pigs_draw_text_transparent(int x, int y, const char *text, const pigs_font_t *font, int spacing_px,
+                                 pigs_color_t fg);
+
 // Pushes whatever was drawn to the physical panel - a thin wrapper over
 // the backend's own show().
 void pigs_show(void);
