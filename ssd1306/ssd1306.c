@@ -295,7 +295,7 @@ const ssd1306_font_t ssd1306_font_chonk = {
     .glyph_height = 11,
     .glyphs = kFontChonk7x11,
     .first_code = 32,
-    .glyph_count = 95,
+    .glyph_count = 96,
 };
 
 const ssd1306_font_t ssd1306_font_mini = {
@@ -319,7 +319,7 @@ const ssd1306_font_t ssd1306_font_tall = {
     .glyph_height = 13,
     .glyphs = kFontTall9x13,
     .first_code = 32,
-    .glyph_count = 95,
+    .glyph_count = 96,
 };
 
 const ssd1306_font_t ssd1306_font_micro = {

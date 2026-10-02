@@ -49,7 +49,8 @@ typedef struct {
 // that.
 extern const ssd1306_font_t ssd1306_font_adafruit;
 
-// "Chonk" - 7x11 glyphs, ASCII 32 (space) through 126 ('~').
+// "Chonk" - 7x11 glyphs, ASCII 32 (space) through 126 ('~'), plus code 127
+// drawn as an upper-case A-umlaut (written "\x7F" in a string literal).
 extern const ssd1306_font_t ssd1306_font_chonk;
 
 // "Mini" - 6x7 glyphs, ASCII 32 (space) through 127 (DEL).
@@ -59,7 +60,8 @@ extern const ssd1306_font_t ssd1306_font_mini;
 // 32 (space) through 126 ('~').
 extern const ssd1306_font_t ssd1306_font_narrow;
 
-// "Tall" - 9x13 glyphs, ASCII 32 (space) through 126 ('~').
+// "Tall" - 9x13 glyphs, ASCII 32 (space) through 126 ('~'), plus code 127
+// drawn as an upper-case A-umlaut, same as chonk.
 extern const ssd1306_font_t ssd1306_font_tall;
 
 // "Micro" - 4x7 glyphs, ASCII 32 (space) through 126 ('~').

@@ -186,12 +186,12 @@ void st7789_fill_circle(int cx, int cy, int r, uint16_t color)
 // type isn't) - kept in the same order ssd1306.c defines them in, purely
 // so the two are easy to compare side by side.
 const st7789_font_t st7789_font_adafruit = {5, 8, kFontAdafruit5x7, 0, 256};
-const st7789_font_t st7789_font_chonk = {7, 11, kFontChonk7x11, 32, 95};
+const st7789_font_t st7789_font_chonk = {7, 11, kFontChonk7x11, 32, 96};
 const st7789_font_t st7789_font_mini = {6, 7, kFontMini6x7, 32, 96};
 const st7789_font_t st7789_font_narrow = {7, 11, kFontNarrow7x11, 32, 95};
 const st7789_font_t st7789_font_micro = {4, 7, kFontMicro4x7, 32, 95};
 const st7789_font_t st7789_font_big = {10, 12, kFontBig10x12, 32, 95};
-const st7789_font_t st7789_font_tall = {9, 13, kFontTall9x13, 32, 95};
+const st7789_font_t st7789_font_tall = {9, 13, kFontTall9x13, 32, 96};
 
 // Identical column-major decode to ssd1306_draw_text() (see its own
 // comment for the full reasoning) - ported, not reinvented, on purpose:

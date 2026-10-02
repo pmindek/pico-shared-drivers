@@ -16,13 +16,13 @@
 #include "../ssd1306/tall_9x13.h"
 
 const pigs_font_t pigs_font_adafruit = {5, 8, kFontAdafruit5x7, 0, 256};
-const pigs_font_t pigs_font_chonk = {7, 11, kFontChonk7x11, 32, 95};
+const pigs_font_t pigs_font_chonk = {7, 11, kFontChonk7x11, 32, 96}; // 127 = A-umlaut, see pigs.h
 const pigs_font_t pigs_font_mini = {6, 7, kFontMini6x7, 32, 96};
 const pigs_font_t pigs_font_narrow = {7, 11, kFontNarrow7x11, 32, 95};
 const pigs_font_t pigs_font_micro = {4, 7, kFontMicro4x7, 32, 95};
 const pigs_font_t pigs_font_big = {10, 12, kFontBig10x12, 32, 95};
 const pigs_font_t pigs_font_cp437 = {9, 16, kFontCp437, 0, 256};
-const pigs_font_t pigs_font_tall = {9, 13, kFontTall9x13, 32, 95};
+const pigs_font_t pigs_font_tall = {9, 13, kFontTall9x13, 32, 96}; // 127 = A-umlaut, see pigs.h
 
 static const pigs_backend_t *s_backend;
 static pigs_rotation_t s_rotation = PIGS_ROTATION_0;

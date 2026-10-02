@@ -117,8 +117,11 @@ extern const pigs_font_t pigs_font_narrow;
 extern const pigs_font_t pigs_font_micro;
 extern const pigs_font_t pigs_font_big;
 extern const pigs_font_t pigs_font_tall;
+// chonk and tall also have one glyph past '~': code 127 is an upper-case
+// A-umlaut (write it as "\x7F" in a string literal - e.g. "S\x7F" "MI").
+// Not CP437's code for it; just the next free cell in those font strips.
 
-// The only Pigs font covering more than ASCII 32-126 - full IBM PC/VGA
+// The only Pigs font covering all of 0-255 - full IBM PC/VGA
 // codepage 437, all 256 codes, 9x16 (see ssd1306_font_cp437's own comment
 // for provenance). The one to reach for whenever a string needs a
 // character outside plain ASCII (e.g. "ä" at CP437 code 0x84) - every
