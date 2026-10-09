@@ -78,15 +78,21 @@ in each project points at `lib/shared/<driver>/...`.
 - `st7789/` - ST7789 SPI color TFT driver (RGB565 framebuffer, shapes,
   text via the same font bitmap data as `ssd1306/`, PWM-dimmable
   backlight).
+- `ili9341/` - ILI9341 SPI color TFT driver (240x320, e.g. 2.8" modules):
+  RGB565 framebuffer + show/show_rect + PWM backlight, same shape as
+  `st7789/` minus shapes/text (draw through `pigs/` instead). Works with
+  CS-less modules (`ILI9341_NO_CS`); the framebuffer can be made smaller
+  than the panel (`ILI9341_WIDTH`/`ILI9341_HEIGHT` compile definitions)
+  and is then shown centered - see `ili9341.h`.
 - `pigs/` - a display-agnostic drawing/UI layer sitting on top of
-  `ssd1306`/`st7789` (or a future third display) via a small backend
+  `ssd1306`/`st7789`/`ili9341` via a small backend
   vtable (native width/height + draw_pixel/fill_rect/show). One
   implementation of color (RGB565, quantized to black/white/dithered-gray
   on a monochrome backend), rotation (0/90/180/270, runtime-settable - a
   project with an IMU can drive it from live tilt for auto-rotation), and
   text, instead of that logic living separately in each display driver.
-  `pigs_backend_st7789()`/`pigs_backend_ssd1306()` are the two existing
-  backends; a new display type is exactly that shape (a `pigs_backend_t`
+  `pigs_backend_st7789()`/`pigs_backend_ili9341()`/`pigs_backend_ssd1306()`
+  are the existing backends; a new display type is exactly that shape (a `pigs_backend_t`
   plus a getter) and nothing else in `pigs.c` needs to change. First real
   use: `birch`'s `screen_pigs_demo.cpp`.
 
