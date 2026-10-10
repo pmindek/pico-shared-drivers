@@ -52,16 +52,21 @@
 #endif
 static const bool kBgrPanel = ST7789_BGR;
 
-// Turns the picture 180 degrees at the controller (MADCTL MX+MY), for a
-// panel whose glass is mounted the other way up relative to the 1.69"
-// module this driver was written for - -DST7789_ROTATE_180=1. birch's
-// 240x320 IPS module showed upside down without it (2026-10-10). Safe with
-// the row offset: the glass is centered in GRAM, so its window is the
-// same rows either way up.
-#ifndef ST7789_ROTATE_180
-#define ST7789_ROTATE_180 0
+// Mirror the picture at the controller (MADCTL MX = left-right, MY =
+// top-bottom; both = 180-degree rotation), for a panel whose glass is
+// wired differently from the 1.69" module this driver was written for -
+// -DST7789_MIRROR_X=1 / -DST7789_MIRROR_Y=1. birch's 240x320 IPS module
+// needs MIRROR_Y only (2026-10-10: top-bottom flipped with neither,
+// left-right flipped with both). Safe with the row offset: the glass is
+// centered in GRAM, so its window is the same rows either way up.
+#ifndef ST7789_MIRROR_X
+#define ST7789_MIRROR_X 0
 #endif
-static const bool kRotate180 = ST7789_ROTATE_180;
+#ifndef ST7789_MIRROR_Y
+#define ST7789_MIRROR_Y 0
+#endif
+static const bool kMirrorX = ST7789_MIRROR_X;
+static const bool kMirrorY = ST7789_MIRROR_Y;
 
 // Many IPS ST7789 panels need display inversion ON for correct (non-
 // negative) colors - a TN panel usually doesn't. Symptom if wrong: colors
@@ -365,10 +370,10 @@ void st7789_init(spi_inst_t *spi, uint sck_pin, uint mosi_pin, uint cs_pin, uint
     write_cmd(ST7789_CMD_COLMOD);
     write_data8(0x55); // 16 bits/pixel (5-6-5) - matches this driver's RGB565 framebuffer
 
-    // MV=0 (no row/column swap); MY+MX per kRotate180, BGR per kBgrPanel -
-    // see their own comments.
+    // MV=0 (no row/column swap); MY (0x80) per kMirrorY, MX (0x40) per
+    // kMirrorX, BGR (0x08) per kBgrPanel - see their own comments.
     write_cmd(ST7789_CMD_MADCTL);
-    write_data8((kRotate180 ? 0xC0 : 0x00) | (kBgrPanel ? 0x08 : 0x00));
+    write_data8((kMirrorY ? 0x80 : 0x00) | (kMirrorX ? 0x40 : 0x00) | (kBgrPanel ? 0x08 : 0x00));
 
     write_cmd(kInvertColors ? ST7789_CMD_INVON : ST7789_CMD_INVOFF);
     write_cmd(ST7789_CMD_NORON);
