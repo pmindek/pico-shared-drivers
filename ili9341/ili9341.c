@@ -81,7 +81,7 @@ static const bool kSpiMode3 = false;
 // halve this before anything else.
 #define ILI9341_SPI_HZ (20 * 1000 * 1000)
 
-#define BACKLIGHT_PWM_WRAP 65535 // same as st7789.c: ~2.3kHz at 150MHz, no flicker
+#define BACKLIGHT_PWM_WRAP 1499 // same as st7789.c: ~100kHz at 150MHz - see there for why not lower
 static const uint8_t kDefaultBacklightPercent = 20;
 
 // Where the framebuffer sits on the glass - centered (see ili9341.h).
@@ -286,7 +286,7 @@ void ili9341_set_backlight_level(uint8_t percent)
     if (percent > 100) percent = 100;
     uint slice = pwm_gpio_to_slice_num(s_bl_pin);
     uint chan = pwm_gpio_to_channel(s_bl_pin);
-    pwm_set_chan_level(slice, chan, (uint32_t)percent * BACKLIGHT_PWM_WRAP / 100);
+    pwm_set_chan_level(slice, chan, (uint32_t)percent * (BACKLIGHT_PWM_WRAP + 1) / 100); // 100% = level past the wrap = steady high, no switching
 }
 
 void ili9341_set_backlight(bool on)

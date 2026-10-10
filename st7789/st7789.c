@@ -118,11 +118,17 @@ static const int kRowOffset = ST7789_GRAM_ROW_OFFSET + (ST7789_PANEL_HEIGHT - ST
 // speed up st7789_show(); nothing else here depends on the exact value.
 #define ST7789_SPI_HZ (20 * 1000 * 1000)
 
-// Backlight PWM: full 16-bit counter, default (1x) clock divider - lands in
-// the low kHz range regardless of the exact system clock (150MHz/65536 is
-// ~2.3kHz, and it won't move far from that), comfortably above visible
-// flicker without needing to query clk_sys just to pick a divider.
-#define BACKLIGHT_PWM_WRAP 65535
+// Backlight PWM: 1500 steps at the default (1x) clock divider - ~100kHz at
+// 150MHz. It used to be the full 16-bit counter (~2.3kHz), which showed as
+// slowly rolling horizontal lines on birch's 240x320 panels below ~50%
+// brightness (2026-10-10; the 1.69" panel was unaffected): the LED current
+// switching couples into the panel's supply, and the panel scans its lines
+// at a rate that beats against that. Well above the line rate (~20-30kHz at
+// 60-80Hz frame rates - estimated, not measured), every line sees many PWM
+// periods and the disturbance averages out instead of forming bands.
+// 1500 steps is still 15 per percent. Untested first guess on the exact
+// frequency - if bands remain, try higher (smaller wrap) before lower.
+#define BACKLIGHT_PWM_WRAP 1499
 
 // What st7789_init() leaves the backlight at, before any caller touches it.
 // Unlike kBgrPanel/kColOffset/kRowOffset above, this isn't a hardware-
@@ -407,7 +413,7 @@ void st7789_set_backlight_level(uint8_t percent)
     if (percent > 100) percent = 100;
     uint slice = pwm_gpio_to_slice_num(s_bl_pin);
     uint chan = pwm_gpio_to_channel(s_bl_pin);
-    pwm_set_chan_level(slice, chan, (uint32_t)percent * BACKLIGHT_PWM_WRAP / 100);
+    pwm_set_chan_level(slice, chan, (uint32_t)percent * (BACKLIGHT_PWM_WRAP + 1) / 100); // 100% = level past the wrap = steady high, no switching
 }
 
 void st7789_set_backlight(bool on)
