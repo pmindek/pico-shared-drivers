@@ -35,9 +35,24 @@ extern "C" {
 // A smaller framebuffer is shown centered on the glass with black margins
 // - how birch runs its 240x280 layouts (made for the ST7789) unchanged on
 // this panel: 20 black rows above and below, same picture otherwise.
+//
+// ---- Landscape ----
+// ILI9341_SWAP_XY=1 has the controller swap rows and columns (MADCTL MV),
+// so the glass is addressed as 320x240 (ILI9341_PANEL_WIDTH/HEIGHT swap
+// too) and the framebuffer defaults to that. Which way round it ends up,
+// and whether mirrored, is ILI9341_MIRROR_X/Y (ili9341.c).
 
+#ifndef ILI9341_SWAP_XY
+#define ILI9341_SWAP_XY 0
+#endif
+
+#if ILI9341_SWAP_XY
+#define ILI9341_PANEL_WIDTH 320
+#define ILI9341_PANEL_HEIGHT 240
+#else
 #define ILI9341_PANEL_WIDTH 240
 #define ILI9341_PANEL_HEIGHT 320
+#endif
 
 #ifndef ILI9341_WIDTH
 #define ILI9341_WIDTH ILI9341_PANEL_WIDTH
@@ -47,7 +62,7 @@ extern "C" {
 #endif
 
 #if ILI9341_WIDTH > ILI9341_PANEL_WIDTH || ILI9341_HEIGHT > ILI9341_PANEL_HEIGHT
-#error "ILI9341_WIDTH/HEIGHT can't be larger than the panel (240x320)"
+#error "ILI9341_WIDTH/HEIGHT can't be larger than the panel (240x320, or 320x240 with ILI9341_SWAP_XY)"
 #endif
 
 // RGB565, same packing as ST7789_RGB565()/PIGS_RGB(). Always RGB order

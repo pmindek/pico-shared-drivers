@@ -32,6 +32,7 @@
 // MADCTL bits
 #define MADCTL_MY 0x80
 #define MADCTL_MX 0x40
+#define MADCTL_MV 0x20
 #define MADCTL_BGR 0x08
 
 // ---- Panel calibration knobs ----
@@ -52,9 +53,19 @@ static const bool kInvertColors = false;
 // Which way up the image sits relative to the pin header. MX set alone is
 // Adafruit's "rotation 0" portrait. Symptom if wrong: picture mirrored
 // left-right (flip kMirrorX) or upside-down-mirrored (flip kMirrorY);
-// upside down but not mirrored = flip both.
-static const bool kMirrorX = true;
-static const bool kMirrorY = false;
+// upside down but not mirrored = flip both. Overridable per build
+// (-DILI9341_MIRROR_X=0 etc.). With ILI9341_SWAP_XY (landscape, ili9341.h)
+// the default is MV alone (Adafruit's "rotation 1"); its 180-degree turn
+// is MV+MX+MY. MV+MX or MV+MY alone would be mirrored.
+#ifndef ILI9341_MIRROR_X
+#define ILI9341_MIRROR_X (!ILI9341_SWAP_XY) // MX for portrait, MV alone for landscape - see above
+#endif
+#ifndef ILI9341_MIRROR_Y
+#define ILI9341_MIRROR_Y 0
+#endif
+static const bool kMirrorX = ILI9341_MIRROR_X;
+static const bool kMirrorY = ILI9341_MIRROR_Y;
+static const bool kSwapXY = ILI9341_SWAP_XY;
 
 // SPI mode. ILI9341 samples MOSI on the rising clock edge, which modes 0
 // and 3 both do; mode 0 is what most ILI9341 libraries use. Without a CS
@@ -255,7 +266,8 @@ void ili9341_init(spi_inst_t *spi, uint sck_pin, uint mosi_pin, int cs_pin, uint
         i += n;
     }
 
-    uint8_t madctl = (kMirrorX ? MADCTL_MX : 0) | (kMirrorY ? MADCTL_MY : 0) | (kBgrPanel ? MADCTL_BGR : 0);
+    uint8_t madctl = (kMirrorX ? MADCTL_MX : 0) | (kMirrorY ? MADCTL_MY : 0) | (kSwapXY ? MADCTL_MV : 0) |
+                     (kBgrPanel ? MADCTL_BGR : 0);
     write_cmd_data(ILI9341_CMD_MADCTL, &madctl, 1);
     write_cmd(kInvertColors ? ILI9341_CMD_INVON : ILI9341_CMD_INVOFF);
 

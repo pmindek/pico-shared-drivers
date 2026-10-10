@@ -68,6 +68,15 @@ static const bool kBgrPanel = ST7789_BGR;
 static const bool kMirrorX = ST7789_MIRROR_X;
 static const bool kMirrorY = ST7789_MIRROR_Y;
 
+// Landscape (st7789.h's ST7789_SWAP_XY): MADCTL MV swaps rows and columns.
+// The swap is itself a mirror (a transpose), so it flips which MX/MY
+// combinations read unmirrored: if a panel's correct portrait setting
+// uses an odd number of MX/MY, its two landscape orientations use an even
+// number together with MV, and vice versa. For birch's IPS module
+// (portrait MY alone) that's MV alone or MV+MX+MY - the two 180 degrees
+// apart. Worked out from that parity argument, not from a datasheet.
+static const bool kSwapXY = ST7789_SWAP_XY;
+
 // Many IPS ST7789 panels need display inversion ON for correct (non-
 // negative) colors - a TN panel usually doesn't. Symptom if wrong: colors
 // look like a photo negative.
@@ -90,8 +99,13 @@ static const bool kInvertColors = true;
 // Other layouts (e.g. 240x240 modules, often at 0 or 80 depending on
 // orientation) can define ST7789_GRAM_ROW_OFFSET themselves. On top of
 // that, a framebuffer shorter than the glass is centered on it.
+// Landscape addresses the whole 320x240 glass, so no offset at all.
 #ifndef ST7789_GRAM_ROW_OFFSET
+#if ST7789_SWAP_XY
+#define ST7789_GRAM_ROW_OFFSET 0
+#else
 #define ST7789_GRAM_ROW_OFFSET ((320 - ST7789_PANEL_HEIGHT) / 2)
+#endif
 #endif
 static const int kColOffset = 0;
 static const int kRowOffset = ST7789_GRAM_ROW_OFFSET + (ST7789_PANEL_HEIGHT - ST7789_HEIGHT) / 2;
@@ -370,10 +384,11 @@ void st7789_init(spi_inst_t *spi, uint sck_pin, uint mosi_pin, uint cs_pin, uint
     write_cmd(ST7789_CMD_COLMOD);
     write_data8(0x55); // 16 bits/pixel (5-6-5) - matches this driver's RGB565 framebuffer
 
-    // MV=0 (no row/column swap); MY (0x80) per kMirrorY, MX (0x40) per
-    // kMirrorX, BGR (0x08) per kBgrPanel - see their own comments.
+    // MY (0x80) per kMirrorY, MX (0x40) per kMirrorX, MV (0x20, row/column
+    // swap) per kSwapXY, BGR (0x08) per kBgrPanel - see their own comments.
     write_cmd(ST7789_CMD_MADCTL);
-    write_data8((kMirrorY ? 0x80 : 0x00) | (kMirrorX ? 0x40 : 0x00) | (kBgrPanel ? 0x08 : 0x00));
+    write_data8((kMirrorY ? 0x80 : 0x00) | (kMirrorX ? 0x40 : 0x00) | (kSwapXY ? 0x20 : 0x00) |
+                (kBgrPanel ? 0x08 : 0x00));
 
     write_cmd(kInvertColors ? ST7789_CMD_INVON : ST7789_CMD_INVOFF);
     write_cmd(ST7789_CMD_NORON);

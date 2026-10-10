@@ -38,7 +38,15 @@ extern "C" {
 // and below. Define these on the compiler command line for *every* source
 // that includes this header (CMake target_compile_definitions).
 // ST7789_BGR / ST7789_MIRROR_X / ST7789_MIRROR_Y (st7789.c) are per-panel too.
+//
+// Landscape: ST7789_SWAP_XY=1 has the controller swap rows and columns
+// (MADCTL MV), for a 240x320 glass used as 320x240 - the framebuffer must
+// then be the whole glass, -DST7789_WIDTH=320 -DST7789_HEIGHT=240. Which
+// way round it ends up, and whether mirrored, is ST7789_MIRROR_X/Y.
 
+#ifndef ST7789_SWAP_XY
+#define ST7789_SWAP_XY 0
+#endif
 #ifndef ST7789_WIDTH
 #define ST7789_WIDTH 240
 #endif
@@ -49,7 +57,11 @@ extern "C" {
 #define ST7789_PANEL_HEIGHT ST7789_HEIGHT
 #endif
 
-#if ST7789_PANEL_HEIGHT < ST7789_HEIGHT || ST7789_PANEL_HEIGHT > 320
+#if ST7789_SWAP_XY
+#if ST7789_WIDTH != 320 || ST7789_HEIGHT != 240 || ST7789_PANEL_HEIGHT != 240
+#error "ST7789_SWAP_XY needs the full 320x240 framebuffer (-DST7789_WIDTH=320 -DST7789_HEIGHT=240)"
+#endif
+#elif ST7789_PANEL_HEIGHT < ST7789_HEIGHT || ST7789_PANEL_HEIGHT > 320
 #error "ST7789_PANEL_HEIGHT must be >= ST7789_HEIGHT and <= 320 (the controller's GRAM)"
 #endif
 
