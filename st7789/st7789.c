@@ -44,8 +44,24 @@
 // Many small IPS ST7789 breakouts are wired BGR rather than RGB internally,
 // but this one isn't - confirmed on real hardware (2026-09-24): a filled
 // ST7789_RED circle came out blue with kBgrPanel=true, exactly the R/B
-// swap this flag exists to correct, so it needs to be off here.
-static const bool kBgrPanel = false;
+// swap this flag exists to correct, so it needs to be off here. Other
+// panels can override it on the command line (-DST7789_BGR=1) - birch's
+// 240x320 IPS module needs it on (R/B swapped without it, 2026-10-10).
+#ifndef ST7789_BGR
+#define ST7789_BGR 0
+#endif
+static const bool kBgrPanel = ST7789_BGR;
+
+// Turns the picture 180 degrees at the controller (MADCTL MX+MY), for a
+// panel whose glass is mounted the other way up relative to the 1.69"
+// module this driver was written for - -DST7789_ROTATE_180=1. birch's
+// 240x320 IPS module showed upside down without it (2026-10-10). Safe with
+// the row offset: the glass is centered in GRAM, so its window is the
+// same rows either way up.
+#ifndef ST7789_ROTATE_180
+#define ST7789_ROTATE_180 0
+#endif
+static const bool kRotate180 = ST7789_ROTATE_180;
 
 // Many IPS ST7789 panels need display inversion ON for correct (non-
 // negative) colors - a TN panel usually doesn't. Symptom if wrong: colors
@@ -349,10 +365,10 @@ void st7789_init(spi_inst_t *spi, uint sck_pin, uint mosi_pin, uint cs_pin, uint
     write_cmd(ST7789_CMD_COLMOD);
     write_data8(0x55); // 16 bits/pixel (5-6-5) - matches this driver's RGB565 framebuffer
 
-    // MY=0 MX=0 MV=0 (no rotation/flip) - BGR bit set per kBgrPanel, see
-    // its own comment.
+    // MV=0 (no row/column swap); MY+MX per kRotate180, BGR per kBgrPanel -
+    // see their own comments.
     write_cmd(ST7789_CMD_MADCTL);
-    write_data8(kBgrPanel ? 0x08 : 0x00);
+    write_data8((kRotate180 ? 0xC0 : 0x00) | (kBgrPanel ? 0x08 : 0x00));
 
     write_cmd(kInvertColors ? ST7789_CMD_INVON : ST7789_CMD_INVOFF);
     write_cmd(ST7789_CMD_NORON);

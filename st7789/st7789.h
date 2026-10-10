@@ -37,6 +37,7 @@ extern "C" {
 // (and every 240x280 layout drawn into it) and shows 20 black rows above
 // and below. Define these on the compiler command line for *every* source
 // that includes this header (CMake target_compile_definitions).
+// ST7789_BGR / ST7789_ROTATE_180 (st7789.c) are per-panel too.
 
 #ifndef ST7789_WIDTH
 #define ST7789_WIDTH 240
