@@ -11,10 +11,8 @@ extern "C" {
 
 // ST7789 SPI TFT driver: a 16-bit (RGB565) framebuffer, pushed to the panel
 // over hardware SPI. Sized for the 240x280 1.69" module in gyros' PINOUT.md
-// Plan B, but nothing here is specific to that panel beyond the two
-// ST7789_WIDTH/HEIGHT constants - other ST7789 sizes would just need those
-// changed (and possibly the offset/BGR/inversion knobs in st7789.c - see
-// their own comments).
+// Plan B; other sizes via the macros below (and possibly the BGR/inversion
+// knobs in st7789.c - see their own comments).
 //
 // Unlike this library's i2c drivers (mpr121.h, ads1115.h, aw9523.h), there
 // is no presence detection here. i2c has an address ACK; SPI doesn't - the
@@ -30,9 +28,29 @@ extern "C" {
 // (gyros' whole build uses well under that in bss already) - simpler than
 // windowed/partial pushes, and there was no memory pressure forcing
 // anything cleverer. Nothing is sent to the panel until st7789_show().
+//
+// ---- Other panel sizes ----
+// ST7789_WIDTH/HEIGHT are the framebuffer; ST7789_PANEL_HEIGHT is the
+// glass (rows), defaulting to the framebuffer's height. A glass taller than
+// the framebuffer shows it centered with black margins - e.g. a 240x320
+// panel built with -DST7789_PANEL_HEIGHT=320 keeps the 240x280 framebuffer
+// (and every 240x280 layout drawn into it) and shows 20 black rows above
+// and below. Define these on the compiler command line for *every* source
+// that includes this header (CMake target_compile_definitions).
 
+#ifndef ST7789_WIDTH
 #define ST7789_WIDTH 240
+#endif
+#ifndef ST7789_HEIGHT
 #define ST7789_HEIGHT 280
+#endif
+#ifndef ST7789_PANEL_HEIGHT
+#define ST7789_PANEL_HEIGHT ST7789_HEIGHT
+#endif
+
+#if ST7789_PANEL_HEIGHT < ST7789_HEIGHT || ST7789_PANEL_HEIGHT > 320
+#error "ST7789_PANEL_HEIGHT must be >= ST7789_HEIGHT and <= 320 (the controller's GRAM)"
+#endif
 
 // RGB565: 5 bits red, 6 green, 5 blue, packed MSB-first. These are defined
 // in RGB order regardless of how the physical panel is wired (see

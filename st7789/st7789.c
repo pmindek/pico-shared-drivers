@@ -62,8 +62,18 @@ static const bool kInvertColors = true;
 // rows showed GRAM the driver never wrote to at all (the reported "colored
 // noise"). Writing to the glass's own actual window, GRAM rows 20-299,
 // fixes both at once. Width matches (240 = 240), so no column offset.
+//
+// Generalized for other glass heights (st7789.h's ST7789_PANEL_HEIGHT):
+// the glass is assumed centered in the 320 GRAM rows - 20 for the 280-row
+// glass above (verified), 0 for a full 320-row glass (nothing to center).
+// Other layouts (e.g. 240x240 modules, often at 0 or 80 depending on
+// orientation) can define ST7789_GRAM_ROW_OFFSET themselves. On top of
+// that, a framebuffer shorter than the glass is centered on it.
+#ifndef ST7789_GRAM_ROW_OFFSET
+#define ST7789_GRAM_ROW_OFFSET ((320 - ST7789_PANEL_HEIGHT) / 2)
+#endif
 static const int kColOffset = 0;
-static const int kRowOffset = 20;
+static const int kRowOffset = ST7789_GRAM_ROW_OFFSET + (ST7789_PANEL_HEIGHT - ST7789_HEIGHT) / 2;
 
 // Conservative starting clock for first bring-up on breadboard jumper
 // wires, where wire length/quality (not the chip) is usually the real
@@ -266,6 +276,22 @@ static void set_window(int x, int y, int w, int h)
     write_data(row, sizeof(row));
 }
 
+#if ST7789_PANEL_HEIGHT > ST7789_HEIGHT
+// One-time, at init: the whole glass to black, margins included - the
+// framebuffer never covers the margins, and GRAM isn't guaranteed cleared
+// by reset. The window starts above framebuffer row 0 by the top margin.
+static void clear_glass(void)
+{
+    set_window(0, -(ST7789_PANEL_HEIGHT - ST7789_HEIGHT) / 2, ST7789_WIDTH, ST7789_PANEL_HEIGHT);
+    write_cmd(ST7789_CMD_RAMWR);
+    static const uint8_t zeros[ST7789_WIDTH * 2] = {0};
+    cs_select();
+    gpio_put(s_dc_pin, 1);
+    for (int row = 0; row < ST7789_PANEL_HEIGHT; row++) spi_write_blocking(s_spi, zeros, sizeof(zeros));
+    cs_deselect();
+}
+#endif
+
 void st7789_init(spi_inst_t *spi, uint sck_pin, uint mosi_pin, uint cs_pin, uint dc_pin, uint rst_pin, uint bl_pin)
 {
     s_spi = spi;
@@ -330,6 +356,9 @@ void st7789_init(spi_inst_t *spi, uint sck_pin, uint mosi_pin, uint cs_pin, uint
 
     write_cmd(kInvertColors ? ST7789_CMD_INVON : ST7789_CMD_INVOFF);
     write_cmd(ST7789_CMD_NORON);
+#if ST7789_PANEL_HEIGHT > ST7789_HEIGHT
+    clear_glass(); // before DISPON, so the margins never show GRAM leftovers
+#endif
 
     write_cmd(ST7789_CMD_DISPON);
     sleep_ms(100);
