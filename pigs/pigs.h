@@ -140,10 +140,27 @@ void pigs_init(const pigs_backend_t *backend);
 void pigs_set_rotation(pigs_rotation_t rotation);
 pigs_rotation_t pigs_get_rotation(void);
 
-// Logical (post-rotation) canvas size - swapped from the backend's own
-// native width/height at 90/270. What a screen should lay out against,
-// never the backend's width/height fields directly, which stay fixed at
-// their native (rotation-0) values regardless of the current rotation.
+// Viewport: confines the logical canvas to a sub-rectangle of the panel,
+// given in the backend's native (rotation-0) coordinates. Rotation then
+// happens *within* it - logical (0,0) is the viewport's own corner for
+// the current rotation, pigs_get_width()/height() report the viewport's
+// size (swapped at 90/270), and every draw, pigs_clear(), pigs_show_rect()
+// and pigs_read_pixel() is clipped to it (a read outside returns false).
+// For drawing a fixed-size world centered on a bigger panel - birch's
+// hockey rink (240x280) turned 90 degrees on a 320x240 landscape panel -
+// without the screen offsetting every coordinate itself. The default is
+// the whole panel, which behaves exactly as before viewports existed;
+// pigs_init() resets to it. Stays set across rotation changes, so a
+// screen that sets one must reset it on the way out.
+void pigs_set_viewport(int x, int y, int w, int h);
+void pigs_reset_viewport(void);
+void pigs_get_viewport(int *x, int *y, int *w, int *h);
+
+// Logical (post-rotation) canvas size - swapped from the viewport's own
+// native width/height at 90/270 (the whole panel unless a viewport is
+// set). What a screen should lay out against, never the backend's
+// width/height fields directly, which stay fixed at their native
+// (rotation-0) values regardless of the current rotation.
 int pigs_get_width(void);
 int pigs_get_height(void);
 

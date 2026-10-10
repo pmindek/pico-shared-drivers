@@ -26,10 +26,38 @@ const pigs_font_t pigs_font_tall = {9, 13, kFontTall9x13, 32, 96}; // 127 = A-um
 
 static const pigs_backend_t *s_backend;
 static pigs_rotation_t s_rotation = PIGS_ROTATION_0;
+// The viewport (see pigs_set_viewport()), native coordinates - the whole
+// panel unless a screen sets a smaller one.
+static int s_vx, s_vy, s_vw, s_vh;
+
+void pigs_reset_viewport(void)
+{
+    s_vx = 0;
+    s_vy = 0;
+    s_vw = s_backend->width;
+    s_vh = s_backend->height;
+}
 
 void pigs_init(const pigs_backend_t *backend)
 {
     s_backend = backend;
+    pigs_reset_viewport();
+}
+
+void pigs_set_viewport(int x, int y, int w, int h)
+{
+    s_vx = x;
+    s_vy = y;
+    s_vw = w;
+    s_vh = h;
+}
+
+void pigs_get_viewport(int *x, int *y, int *w, int *h)
+{
+    *x = s_vx;
+    *y = s_vy;
+    *w = s_vw;
+    *h = s_vh;
 }
 
 void pigs_set_rotation(pigs_rotation_t rotation) { s_rotation = rotation; }
@@ -41,8 +69,28 @@ static bool rotation_swaps_axes(void)
     return s_rotation == PIGS_ROTATION_90 || s_rotation == PIGS_ROTATION_270;
 }
 
-int pigs_get_width(void) { return rotation_swaps_axes() ? s_backend->height : s_backend->width; }
-int pigs_get_height(void) { return rotation_swaps_axes() ? s_backend->width : s_backend->height; }
+int pigs_get_width(void) { return rotation_swaps_axes() ? s_vh : s_vw; }
+int pigs_get_height(void) { return rotation_swaps_axes() ? s_vw : s_vh; }
+
+static bool in_viewport(int px, int py)
+{
+    return px >= s_vx && px < s_vx + s_vw && py >= s_vy && py < s_vy + s_vh;
+}
+
+// Clips a native rect to the viewport in place; false if nothing is left.
+static bool clip_to_viewport(int *x, int *y, int *w, int *h)
+{
+    int x0 = *x > s_vx ? *x : s_vx;
+    int y0 = *y > s_vy ? *y : s_vy;
+    int x1 = *x + *w < s_vx + s_vw ? *x + *w : s_vx + s_vw;
+    int y1 = *y + *h < s_vy + s_vh ? *y + *h : s_vy + s_vh;
+    if (x1 <= x0 || y1 <= y0) return false;
+    *x = x0;
+    *y = y0;
+    *w = x1 - x0;
+    *h = y1 - y0;
+    return true;
+}
 
 // Maps a logical (post-rotation) coordinate to the backend's own native
 // (rotation-0) physical coordinate space - the standard 4-case rotation
@@ -51,9 +99,11 @@ int pigs_get_height(void) { return rotation_swaps_axes() ? s_backend->width : s_
 // worth a real visual sanity check on hardware, which birch's own
 // auto-rotation demo provides directly). Every draw call below goes
 // through this once, so a caller never has to think about rotation at all.
+// The rotation happens within the viewport (the whole panel by default),
+// then the viewport's own origin is added.
 static void to_physical(int x, int y, int *px, int *py)
 {
-    int w = s_backend->width, h = s_backend->height;
+    int w = s_vw, h = s_vh;
     switch (s_rotation) {
         case PIGS_ROTATION_90:
             *px = w - 1 - y;
@@ -73,12 +123,15 @@ static void to_physical(int x, int y, int *px, int *py)
             *py = y;
             break;
     }
+    *px += s_vx;
+    *py += s_vy;
 }
 
 void pigs_draw_pixel(int x, int y, pigs_color_t color)
 {
     int px, py;
     to_physical(x, y, &px, &py);
+    if (!in_viewport(px, py)) return;
     s_backend->draw_pixel(px, py, color);
 }
 
@@ -87,6 +140,7 @@ bool pigs_read_pixel(int x, int y, pigs_color_t *out)
     if (!s_backend->read_pixel) return false;
     int px, py;
     to_physical(x, y, &px, &py);
+    if (!in_viewport(px, py)) return false;
     *out = s_backend->read_pixel(px, py);
     return true;
 }
@@ -105,15 +159,17 @@ void pigs_fill_rect(int x, int y, int w, int h, pigs_color_t color)
     int ry = py0 < py1 ? py0 : py1;
     int rw = (px0 < px1 ? px1 - px0 : px0 - px1) + 1;
     int rh = (py0 < py1 ? py1 - py0 : py0 - py1) + 1;
+    if (!clip_to_viewport(&rx, &ry, &rw, &rh)) return;
     s_backend->fill_rect(rx, ry, rw, rh, color);
 }
 
 void pigs_clear(pigs_color_t color)
 {
-    // Native full-panel fill, not a logical/rotated one - rotation only
-    // changes how logical coordinates map onto the panel, never which
-    // physical pixels exist, so there's nothing for a clear to rotate.
-    s_backend->fill_rect(0, 0, s_backend->width, s_backend->height, color);
+    // Native fill of the whole viewport (the whole panel by default), not a
+    // logical/rotated one - rotation only changes how logical coordinates
+    // map onto the panel, never which physical pixels exist, so there's
+    // nothing for a clear to rotate.
+    s_backend->fill_rect(s_vx, s_vy, s_vw, s_vh, color);
 }
 
 // Identical column-major decode to ssd1306_draw_text()/st7789_draw_text()
@@ -202,5 +258,6 @@ void pigs_show_rect(int x, int y, int w, int h)
     int ry = py0 < py1 ? py0 : py1;
     int rw = (px0 < px1 ? px1 - px0 : px0 - px1) + 1;
     int rh = (py0 < py1 ? py1 - py0 : py0 - py1) + 1;
+    if (!clip_to_viewport(&rx, &ry, &rw, &rh)) return;
     s_backend->show_rect(rx, ry, rw, rh);
 }
