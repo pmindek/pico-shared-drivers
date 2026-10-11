@@ -95,6 +95,18 @@ in each project points at `lib/shared/<driver>/...`.
   are the existing backends; a new display type is exactly that shape (a `pigs_backend_t`
   plus a getter) and nothing else in `pigs.c` needs to change. First real
   use: `birch`'s `screen_pigs_demo.cpp`.
+- `touch/` - a display-agnostic touch layer, the same split as Pigs: a
+  backend (`touch_backend_t`: read one point, optionally "data ready")
+  feeds `touch.c`, which turns the controller's coordinates into screen
+  coordinates (swap X/Y + mirror, set once at init) and press / release /
+  tap / drag events, polled from the main loop. `touch_ft6336.c` is the
+  FT6336U backend; `touch_inject_tap()` fakes a tap for driving a screen
+  from a PC. Nothing in it knows about Pigs or a panel.
+- `ft6336/` - FT6336U capacitive touch controller over i2c (the touch
+  layer of 240x320 ST7789 modules with a CTP), given its i2c port,
+  address and RST/INT pins. Setup (reset) and probe are split so a caller
+  can overlap the chip's ~300 ms start-up with its own init; INT is set to
+  stay low while touched, so the bus is idle while nobody touches.
 
 More drivers belong here too - add a new subdirectory per driver rather
 than growing one grab-bag file.
