@@ -141,4 +141,15 @@ void touch_clear(touch_t *touch)
     if (touch->down) touch->tap_cancelled = true;
 }
 
+void touch_inject_tap(touch_t *touch, int x, int y)
+{
+    if (touch->down) return;
+    touch->x = touch->press_x = touch->release_x = x;
+    touch->y = touch->press_y = touch->release_y = y;
+    touch->press_pending = true;
+    touch->release_pending = true;
+    touch->release_was_tap = true;
+    touch->last_activity_us = time_us_64();
+}
+
 uint64_t touch_get_last_activity_us(const touch_t *touch) { return touch->last_activity_us; }

@@ -111,6 +111,11 @@ bool touch_take_drag(touch_t *touch, int *dx, int *dy);
 // its eventual release no longer counts as a tap.
 void touch_clear(touch_t *touch);
 
+// Test aid: queues a press and its release at (x, y), screen coordinates,
+// as if a finger tapped there - for driving a screen from a PC (e.g. over
+// serial) without touching it. Ignored while a real finger is down.
+void touch_inject_tap(touch_t *touch, int x, int y);
+
 // time_us_64() of the last press, release or movement - 0 if never.
 // Consumes nothing (for idle timeouts).
 uint64_t touch_get_last_activity_us(const touch_t *touch);
