@@ -115,6 +115,14 @@ void ili9341_show(void);
 // for a full-frame transfer.
 void ili9341_show_rect(int x, int y, int w, int h);
 
+// DMA push - the same as st7789.h's (see there): the framebuffer itself,
+// and a push from DMA in 16-bit SPI frames that returns at once. Every
+// call above that uses the bus waits for a push still going.
+uint16_t *ili9341_framebuffer(void);
+bool ili9341_push_async(int x, int y, int w, int h, const uint16_t *pixels);
+bool ili9341_push_busy(void);
+void ili9341_push_wait(void);
+
 #ifdef __cplusplus
 }
 #endif

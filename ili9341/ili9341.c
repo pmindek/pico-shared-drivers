@@ -2,6 +2,7 @@
 
 #include <stddef.h>
 
+#include "hardware/dma.h"
 #include "hardware/gpio.h"
 #include "hardware/pwm.h"
 #include "pico/stdlib.h"
@@ -294,6 +295,60 @@ void ili9341_set_backlight(bool on)
     ili9341_set_backlight_level(on ? 100 : 0);
 }
 
+// ---- DMA push (same as st7789.c's) ----
+
+static int s_dma_channel = -1; // claimed on the first push
+static bool s_push_going = false;
+
+uint16_t *ili9341_framebuffer(void) { return s_buf; }
+
+static void set_spi_format(uint bits)
+{
+    spi_set_format(s_spi, bits, kSpiMode3 ? SPI_CPOL_1 : SPI_CPOL_0, kSpiMode3 ? SPI_CPHA_1 : SPI_CPHA_0,
+                   SPI_MSB_FIRST);
+}
+
+bool ili9341_push_busy(void)
+{
+    if (!s_push_going) return false;
+    return dma_channel_is_busy((uint)s_dma_channel) || spi_is_busy(s_spi);
+}
+
+void ili9341_push_wait(void)
+{
+    if (!s_push_going) return;
+    dma_channel_wait_for_finish_blocking((uint)s_dma_channel);
+    while (spi_is_busy(s_spi)) tight_loop_contents();
+    // DMA only fed TX: empty the overrun RX FIFO, as spi_write_blocking() would.
+    while (spi_is_readable(s_spi)) (void)spi_get_hw(s_spi)->dr;
+    spi_get_hw(s_spi)->icr = SPI_SSPICR_RORIC_BITS;
+    cs_deselect();
+    set_spi_format(8);
+    s_push_going = false;
+}
+
+bool ili9341_push_async(int x, int y, int w, int h, const uint16_t *pixels)
+{
+    if (x < 0 || y < 0 || w <= 0 || h <= 0 || x + w > ILI9341_WIDTH || y + h > ILI9341_HEIGHT) return false;
+    ili9341_push_wait();
+    if (s_dma_channel < 0) s_dma_channel = dma_claim_unused_channel(true);
+
+    set_panel_window(ORIGIN_X + x, ORIGIN_Y + y, w, h);
+    write_cmd(ILI9341_CMD_RAMWR);
+    set_spi_format(16); // a 16-bit frame goes out MSB first - no byte swap
+    cs_select();
+    gpio_put(s_dc_pin, 1);
+
+    dma_channel_config config = dma_channel_get_default_config((uint)s_dma_channel);
+    channel_config_set_transfer_data_size(&config, DMA_SIZE_16);
+    channel_config_set_read_increment(&config, true);
+    channel_config_set_write_increment(&config, false);
+    channel_config_set_dreq(&config, spi_get_dreq(s_spi, true));
+    s_push_going = true;
+    dma_channel_configure((uint)s_dma_channel, &config, &spi_get_hw(s_spi)->dr, pixels, (uint)(w * h), true);
+    return true;
+}
+
 void ili9341_show(void)
 {
     ili9341_show_rect(0, 0, ILI9341_WIDTH, ILI9341_HEIGHT);
@@ -307,6 +362,7 @@ void ili9341_show_rect(int x, int y, int w, int h)
     if (y + h > ILI9341_HEIGHT) h = ILI9341_HEIGHT - y;
     if (w <= 0 || h <= 0) return;
 
+    ili9341_push_wait();
     set_panel_window(ORIGIN_X + x, ORIGIN_Y + y, w, h);
     write_cmd(ILI9341_CMD_RAMWR);
 

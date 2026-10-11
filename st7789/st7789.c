@@ -1,5 +1,6 @@
 #include "st7789.h"
 
+#include "hardware/dma.h"
 #include "hardware/gpio.h"
 #include "hardware/pwm.h"
 #include "pico/stdlib.h"
@@ -421,14 +422,65 @@ void st7789_set_backlight(bool on)
     st7789_set_backlight_level(on ? 100 : 0);
 }
 
+// ---- DMA push ----
+
+static int s_dma_channel = -1; // claimed on the first push
+static bool s_push_going = false;
+
+uint16_t *st7789_framebuffer(void) { return s_buf; }
+
+bool st7789_push_busy(void)
+{
+    if (!s_push_going) return false;
+    return dma_channel_is_busy((uint)s_dma_channel) || spi_is_busy(s_spi);
+}
+
+void st7789_push_wait(void)
+{
+    if (!s_push_going) return;
+    dma_channel_wait_for_finish_blocking((uint)s_dma_channel);
+    while (spi_is_busy(s_spi)) tight_loop_contents(); // the last frames still shifting out
+    // DMA only fed TX: the RX FIFO filled with junk and overran. Empty it
+    // and clear the overrun, as spi_write_blocking() would have.
+    while (spi_is_readable(s_spi)) (void)spi_get_hw(s_spi)->dr;
+    spi_get_hw(s_spi)->icr = SPI_SSPICR_RORIC_BITS;
+    cs_deselect();
+    spi_set_format(s_spi, 8, SPI_CPOL_0, SPI_CPHA_0, SPI_MSB_FIRST); // st7789_init()'s (spi_init()'s default)
+    s_push_going = false;
+}
+
+bool st7789_push_async(int x, int y, int w, int h, const uint16_t *pixels)
+{
+    if (x < 0 || y < 0 || w <= 0 || h <= 0 || x + w > ST7789_WIDTH || y + h > ST7789_HEIGHT) return false;
+    st7789_push_wait();
+    if (s_dma_channel < 0) s_dma_channel = dma_claim_unused_channel(true);
+
+    set_window(x, y, w, h);
+    write_cmd(ST7789_CMD_RAMWR);
+    spi_set_format(s_spi, 16, SPI_CPOL_0, SPI_CPHA_0, SPI_MSB_FIRST);
+    cs_select();
+    gpio_put(s_dc_pin, 1);
+
+    dma_channel_config config = dma_channel_get_default_config((uint)s_dma_channel);
+    channel_config_set_transfer_data_size(&config, DMA_SIZE_16);
+    channel_config_set_read_increment(&config, true);
+    channel_config_set_write_increment(&config, false);
+    channel_config_set_dreq(&config, spi_get_dreq(s_spi, true));
+    s_push_going = true;
+    dma_channel_configure((uint)s_dma_channel, &config, &spi_get_hw(s_spi)->dr, pixels, (uint)(w * h), true);
+    return true;
+}
+
 void st7789_write_command(uint8_t cmd, const uint8_t *data, size_t len)
 {
+    st7789_push_wait();
     write_cmd(cmd);
     if (len > 0) write_data(data, len);
 }
 
 void st7789_show(void)
 {
+    st7789_push_wait();
     set_window(0, 0, ST7789_WIDTH, ST7789_HEIGHT);
     write_cmd(ST7789_CMD_RAMWR);
 
@@ -460,6 +512,7 @@ void st7789_show_rect(int x, int y, int w, int h)
     if (y + h > ST7789_HEIGHT) h = ST7789_HEIGHT - y;
     if (w <= 0 || h <= 0) return;
 
+    st7789_push_wait();
     set_window(x, y, w, h);
     write_cmd(ST7789_CMD_RAMWR);
 

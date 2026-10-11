@@ -152,6 +152,32 @@ void st7789_show(void);
 // rectangle is a no-op.
 void st7789_show_rect(int x, int y, int w, int h);
 
+// ---- DMA push (for full-frame animation, e.g. a 3D view) ----
+// The framebuffer itself (ST7789_WIDTH x ST7789_HEIGHT, row-major, native
+// RGB565 - what every drawing call above writes), for callers that render
+// straight into it.
+uint16_t *st7789_framebuffer(void);
+
+// Starts pushing w*h pixels to the panel rectangle (x, y, w, h) and returns
+// at once: DMA feeds the SPI in 16-bit frames, so the CPU is free and no
+// byte swap is needed (a 16-bit frame goes out MSB first, as the panel
+// wants). `pixels` is row-major, w wide, native RGB565 - the framebuffer's
+// own rows when w == ST7789_WIDTH, or any buffer of the caller's (e.g. a
+// second one, to render the next frame while this one goes out). It must
+// stay untouched until the push is over. The rectangle must lie on the
+// panel (nothing is clipped - returns false and pushes nothing otherwise).
+// Waits for any push still going first. Every other call here that uses
+// the bus (show, show_rect, write_command) waits too, so nothing collides.
+// Claims a DMA channel on first use.
+bool st7789_push_async(int x, int y, int w, int h, const uint16_t *pixels);
+
+// True while a push from st7789_push_async() is still going.
+bool st7789_push_busy(void);
+
+// Waits until the push from st7789_push_async() (if any) is over and the
+// bus is back to normal. Returns at once when none is going.
+void st7789_push_wait(void);
+
 // ---- Text ----
 //
 // A font: fixed-width glyphs for a contiguous range of character codes,
