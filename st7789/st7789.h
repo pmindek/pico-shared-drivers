@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 
 #include "hardware/spi.h"
@@ -101,6 +102,16 @@ void st7789_set_backlight_level(uint8_t percent);
 
 // Convenience wrapper: st7789_set_backlight_level(on ? 100 : 0).
 void st7789_set_backlight(bool on);
+
+// Sends one controller command and its parameter bytes as-is (len may be
+// 0) - for panel-specific tuning a caller applies after st7789_init(), e.g.
+// VCOM (0xBB), frame rate / inversion (0xC6), voltages, gamma. The init
+// sequence leaves all of those at the controller's power-on defaults, which
+// suit some glass better than others (birch's 240x320 IPS module shows
+// vertical crosstalk with them). Volatile: the next st7789_init() (its
+// hardware reset) undoes it. Don't send RAMWR/CASET/RASET/MADCTL here -
+// st7789_show() owns those.
+void st7789_write_command(uint8_t cmd, const uint8_t *data, size_t len);
 
 // Framebuffer drawing - nothing reaches the panel until st7789_show().
 // Coordinates outside 0..ST7789_WIDTH-1 / 0..ST7789_HEIGHT-1 are clipped

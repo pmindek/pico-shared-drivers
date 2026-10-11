@@ -421,6 +421,12 @@ void st7789_set_backlight(bool on)
     st7789_set_backlight_level(on ? 100 : 0);
 }
 
+void st7789_write_command(uint8_t cmd, const uint8_t *data, size_t len)
+{
+    write_cmd(cmd);
+    if (len > 0) write_data(data, len);
+}
+
 void st7789_show(void)
 {
     set_window(0, 0, ST7789_WIDTH, ST7789_HEIGHT);
