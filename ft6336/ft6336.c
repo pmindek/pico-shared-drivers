@@ -7,8 +7,10 @@
 #define REG_CHIP_ID 0xA3   // 0x64 on an FT6336U
 #define REG_FIRMWARE 0xA6
 #define REG_VENDOR_ID 0xA8 // FocalTech's 0x11
+#define REG_P_MODE 0xA5    // power mode: 0x00 active, 0x01 monitor, 0x03 hibernate
 
 #define G_MODE_HELD_LOW 0x00
+#define P_MODE_HIBERNATE 0x03
 
 // P1_XH's event flag: 0 = put down, 1 = lifted, 2 = contact, 3 = none.
 #define EVENT_LIFT_UP 1
@@ -94,4 +96,16 @@ bool ft6336_int_asserted(const ft6336_t *dev)
 {
     if (dev->int_pin < 0) return true;
     return !gpio_get(dev->int_pin);
+}
+
+bool ft6336_hibernate(ft6336_t *dev)
+{
+    bool ok = write_reg(dev, REG_P_MODE, P_MODE_HIBERNATE);
+    dev->present = false; // until a reset and a probe bring it back
+    return ok;
+}
+
+bool ft6336_powered_up(const ft6336_t *dev)
+{
+    return time_us_64() - dev->reset_released_us >= (uint64_t)FT6336_POWER_ON_MS * 1000;
 }

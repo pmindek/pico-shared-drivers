@@ -65,6 +65,17 @@ bool ft6336_read(ft6336_t *dev, int *x, int *y);
 // bus entirely while it's high and nothing was touching.
 bool ft6336_int_asserted(const ft6336_t *dev);
 
+// Puts the chip into hibernate - its lowest-power mode, no scanning, no
+// reports - for a caller that switches touch off. Only a reset brings it
+// back (FocalTech's application note - not measured or tried otherwise on
+// this chip): ft6336_setup() again, then ft6336_probe() once
+// FT6336_POWER_ON_MS has passed. Returns whether the chip took the command.
+bool ft6336_hibernate(ft6336_t *dev);
+
+// True once FT6336_POWER_ON_MS have passed since ft6336_setup()'s reset -
+// ft6336_probe() then answers without waiting.
+bool ft6336_powered_up(const ft6336_t *dev);
+
 #ifdef __cplusplus
 }
 #endif
