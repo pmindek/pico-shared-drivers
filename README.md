@@ -107,6 +107,14 @@ in each project points at `lib/shared/<driver>/...`.
   address and RST/INT pins. Setup (reset) and probe are split so a caller
   can overlap the chip's ~300 ms start-up with its own init; INT is set to
   stay low while touched, so the bus is idle while nobody touches.
+- `sdcard/` - SD card over SPI, read-only: init (SDSC and SDHC/SDXC) and
+  512-byte block reads. Made to share SCK/MOSI with a display: it sets the
+  SPI clock it needs on each call and leaves restoring the display's to
+  the caller (no display transfer may run meanwhile).
+- `fat32/` - a small read-only FAT32 and exFAT reader over a sector-read
+  callback (e.g. `sdcard_read_blocks()`): mount, list a directory, open
+  and read a file by path. FAT32 by 8.3 names, exFAT by its (ASCII) long
+  names; no FAT16, no writing.
 
 More drivers belong here too - add a new subdirectory per driver rather
 than growing one grab-bag file.
