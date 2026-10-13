@@ -478,6 +478,27 @@ void st7789_write_command(uint8_t cmd, const uint8_t *data, size_t len)
     if (len > 0) write_data(data, len);
 }
 
+bool st7789_raw_write_begin(int x, int y, int w, int h)
+{
+    if (x < 0 || y < 0 || w <= 0 || h <= 0 || x + w > ST7789_WIDTH || y + h > ST7789_HEIGHT) return false;
+    st7789_push_wait();
+    set_window(x, y, w, h);
+    write_cmd(ST7789_CMD_RAMWR);
+    while (spi_is_busy(s_spi)) tight_loop_contents();
+    cs_select();
+    gpio_put(s_dc_pin, 1);
+    return true;
+}
+
+void st7789_raw_write_end(void) { cs_deselect(); }
+
+void st7789_set_12bit_pixels(bool on)
+{
+    st7789_push_wait();
+    write_cmd(ST7789_CMD_COLMOD);
+    write_data8(on ? 0x53 : 0x55); // control interface 12 bits (011) / 16 bits (101); the RGB interface's 65K either way
+}
+
 void st7789_show(void)
 {
     st7789_push_wait();

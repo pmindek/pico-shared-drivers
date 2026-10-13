@@ -113,6 +113,18 @@ void st7789_set_backlight(bool on);
 // st7789_show() owns those.
 void st7789_write_command(uint8_t cmd, const uint8_t *data, size_t len);
 
+// For a caller that streams the pixels itself (st7789_pio.h): sets the
+// window x,y,w,h (clipped like st7789_push_async() - false if empty),
+// sends RAMWR and leaves the panel selected in data mode; the pixels then
+// go out on SCK/MOSI by whatever means; st7789_raw_write_end() deselects.
+// Nothing else may use the bus in between.
+bool st7789_raw_write_begin(int x, int y, int w, int h);
+void st7789_raw_write_end(void);
+
+// The panel's pixel format: 12 bits (RGB444 - st7789_pio.h's pushes) or 16
+// (RGB565, everything else here). Switch back before any other push.
+void st7789_set_12bit_pixels(bool on);
+
 // Framebuffer drawing - nothing reaches the panel until st7789_show().
 // Coordinates outside 0..ST7789_WIDTH-1 / 0..ST7789_HEIGHT-1 are clipped
 // (silently ignored/truncated), same convention as ssd1306's own drawing
