@@ -105,6 +105,20 @@ bool ft6336_hibernate(ft6336_t *dev)
     return ok;
 }
 
+bool ft6336_read_reg(ft6336_t *dev, uint8_t reg, uint8_t *value)
+{
+    if (read_regs(dev, reg, value, 1)) return true;
+    dev->errors++;
+    return false;
+}
+
+bool ft6336_write_reg(ft6336_t *dev, uint8_t reg, uint8_t value)
+{
+    if (write_reg(dev, reg, value)) return true;
+    dev->errors++;
+    return false;
+}
+
 bool ft6336_powered_up(const ft6336_t *dev)
 {
     return time_us_64() - dev->reset_released_us >= (uint64_t)FT6336_POWER_ON_MS * 1000;

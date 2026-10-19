@@ -33,6 +33,14 @@ extern "C" {
 // taken from there, not measured on this chip.
 #define FT6336_POWER_ON_MS 300
 
+// Tuning registers, from FocalTech's FT6x36 application note - not checked
+// against an FT6336U datasheet. Whether the chip's firmware honours a write
+// isn't known either: read it back. They're volatile - a reset (including
+// waking from hibernate) brings back the firmware's defaults.
+#define FT6336_REG_THRESHOLD 0x80     // ID_G_THGROUP: touch detect threshold - lower = more sensitive
+#define FT6336_REG_THRESHOLD_DIFF 0x85 // ID_G_THDIFF: filter threshold for moving points
+#define FT6336_REG_PERIOD_ACTIVE 0x88 // ID_G_PERIODACTIVE: report rate in active mode
+
 typedef struct {
     i2c_inst_t *i2c;
     uint8_t addr;
@@ -71,6 +79,11 @@ bool ft6336_int_asserted(const ft6336_t *dev);
 // this chip): ft6336_setup() again, then ft6336_probe() once
 // FT6336_POWER_ON_MS has passed. Returns whether the chip took the command.
 bool ft6336_hibernate(ft6336_t *dev);
+
+// One register, raw - for the tuning registers above. Return whether the
+// transaction went through (a failure counts in dev->errors).
+bool ft6336_read_reg(ft6336_t *dev, uint8_t reg, uint8_t *value);
+bool ft6336_write_reg(ft6336_t *dev, uint8_t reg, uint8_t value);
 
 // True once FT6336_POWER_ON_MS have passed since ft6336_setup()'s reset -
 // ft6336_probe() then answers without waiting.
